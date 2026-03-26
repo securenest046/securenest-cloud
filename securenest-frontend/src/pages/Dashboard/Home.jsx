@@ -160,8 +160,8 @@ const Home = () => {
            const response = await fetch(data.fileLink);
            const rawBuffer = await response.arrayBuffer();
            
-           const { decryptFileFromDownload } = await import('../../utils/cryptoFunctions');
-           const decryptedBlob = await decryptFileFromDownload(rawBuffer, vaultKey, file.iv);
+           const { decryptFileForDownload } = await import('../../utils/cryptoFunctions');
+           const decryptedBlob = await decryptFileForDownload(rawBuffer, vaultKey, file.iv, file.mimeType);
            
            const url = URL.createObjectURL(decryptedBlob);
            setBlobCache(prev => ({ ...prev, [file._id]: url }));
@@ -172,6 +172,34 @@ const Home = () => {
         alert("Failed to decrypt or retrieve file.");
     }
   };
+
+  // Automated Thumbnail Engine (Decrypted previews for images)
+  useEffect(() => {
+     const generateThumbnails = async () => {
+         if (!userFiles || !vaultKey || vaultKey.includes("Loading")) return;
+         
+         const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+         const { decryptFileForDownload } = await import('../../utils/cryptoFunctions');
+         
+         for (const file of userFiles) {
+             if (file.mimeType.startsWith('image/') && !blobCache[file._id]) {
+                 try {
+                     const { data } = await axios.get(`${bUrl}/api/storage/download/${file._id}`);
+                     if (data.success && data.fileLink) {
+                         const response = await fetch(data.fileLink);
+                         const rawBuffer = await response.arrayBuffer();
+                         const decryptedBlob = await decryptFileForDownload(rawBuffer, vaultKey, file.iv, file.mimeType);
+                         const url = URL.createObjectURL(decryptedBlob);
+                         setBlobCache(prev => ({ ...prev, [file._id]: url }));
+                     }
+                 } catch (e) { console.warn("Thumb Generation Failed for", file.originalName); }
+                 // Anti-throttle buffer
+                 await new Promise(r => setTimeout(r, 300));
+             }
+         }
+     };
+     generateThumbnails();
+  }, [userFiles, vaultKey]);
 
   const handleDelete = async (e, fileId) => {
     e.stopPropagation();

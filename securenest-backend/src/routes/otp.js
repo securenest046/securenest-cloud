@@ -18,8 +18,15 @@ const sendEmail = async (to, subject, htmlContent) => {
     }
 
     const transporter = nodemailer.createTransport({
-        service: 'gmail',
-        auth: { user, pass }
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, 
+        auth: { 
+            user: user.trim(), 
+            pass: pass.trim() 
+        },
+        logger: true,
+        debug: true
     });
 
     try {
@@ -50,15 +57,18 @@ router.post('/send-otp', async (req, res) => {
     const isSent = await sendEmail(
         email, 
         'SecureNest - Verification Code', 
-        `<h2>Your SecureNest Code</h2><p>Your 6-digit OTP code is: <strong style="font-size: 24px; letter-spacing: 4px;">${generatedOtp}</strong></p><p>This code expires securely in 10 minutes. Do not arbitrarily share it.</p>`
+        `<h2>Your SecureNest Code</h2><p>Your 6-digit OTP code is: <strong style="font-size: 24px; letter-spacing: 4px;">${generatedOtp}</strong></p><p>This code expires securely in 10 minutes. Do not share it.</p>`
     );
 
     if (isSent) {
-        res.status(200).json({ success: true, message: 'OTP sent successfully to email via SMTP.' });
+        res.status(200).json({ success: true, message: 'OTP dispatched via SMTP.' });
     } else {
-        // Mock fallback if user hasn't set up Google App Password yet in local env
-        console.log(`[DEV MODE] Generated OTP for ${email}: ${generatedOtp}`);
-        res.status(200).json({ success: true, mocked: true, message: 'Simulated OTP Send (Check Node Backend Console)', debugCode: generatedOtp });
+        // Log the failure for Render logs
+        console.error(`[CRITICAL] OTP Email Delivery Failed for ${email}. Check SMTP_EMAIL and SMTP_PASS credentials.`);
+        res.status(500).json({ 
+            success: false, 
+            message: 'Email delivery failed. Check your Backend SMTP_PASS (App Password) environment variable.' 
+        });
     }
 });
 
