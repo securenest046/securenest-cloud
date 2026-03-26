@@ -9,7 +9,8 @@ const Register = () => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    password: ''
+    password: '',
+    phone: '' // Added for sync with verification payload
   });
   
   const [pwdCriteria, setPwdCriteria] = useState({
@@ -86,6 +87,11 @@ const Register = () => {
             <input type="text" name="fullName" className="input-field" onChange={handleChange} required />
           </div>
           
+          <div className="input-group" style={{ marginBottom: '16px' }}>
+            <label>Phone Number (Optional)</label>
+            <input type="tel" name="phone" className="input-field" onChange={handleChange} placeholder="+1 (555) 000-0000" />
+          </div>
+
           <div className="input-group" style={{ marginBottom: '16px' }}>
             <label>Email Address</label>
             <input type="email" name="email" className="input-field" onChange={handleChange} required />
