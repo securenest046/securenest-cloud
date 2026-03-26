@@ -1,0 +1,11 @@
+mongodb+srv://securenestadmin_db_user:k5yrYRKr5W1NtqAU@securenestcluster.chmanpn.mongodb.net/?appName=SecureNestCluster
+
+apiKey: "AIzaSyD19Iy9FuAE1aY9aIOCECYM8s3idM_Zp3o",
+authDomain: "nest-d1ca3.firebaseapp.com",
+projectId: "nest-d1ca3",
+storageBucket: "nest-d1ca3.firebasestorage.app",
+messagingSenderId: "279713792346",
+appId: "1:279713792346:web:fc5ef99fba7c549da07363",
+measurementId: "G-DDB8PJEWJX"
+
+telegramBotToken: "8716893195:AAHcPYL8pAh_Axo5DZRIHMbrrWCruRCxVDg"
