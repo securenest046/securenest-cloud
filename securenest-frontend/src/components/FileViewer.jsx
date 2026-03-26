@@ -1,7 +1,7 @@
 import React from 'react';
 import { X, Download } from 'lucide-react';
 
-const FileViewer = ({ file, blobUrl, onClose }) => {
+const FileViewer = ({ file, blobUrl, vaultKey, onClose }) => {
   if (!file || !blobUrl) return null;
 
   const type = file.mimeType || '';
@@ -12,11 +12,15 @@ const FileViewer = ({ file, blobUrl, onClose }) => {
     } else if (type.startsWith('video/')) {
        return <video src={blobUrl} controls autoPlay style={{ maxWidth: '100%', maxHeight: '80vh', borderRadius: '8px', boxShadow: '0 10px 40px rgba(0,0,0,0.5)' }} />;
     } else if (type.startsWith('audio/')) {
-       return <audio src={blobUrl} controls autoPlay style={{ width: '400px' }} />;
+       return (
+         <div style={{ background: 'var(--bg-card)', padding: '40px', borderRadius: '24px', border: '1px solid var(--border-color)', textAlign: 'center' }}>
+            <h4 style={{ marginBottom: '24px', opacity: 0.8 }}>Playing Encrypted Audio</h4>
+            <audio src={blobUrl} controls autoPlay style={{ width: '400px' }} />
+         </div>
+       );
     } else if (type === 'application/pdf') {
        return <iframe src={blobUrl} style={{ width: '100%', height: '85vh', border: 'none', borderRadius: '8px', background: '#fff' }} title={file.originalName} />;
     } else if (type.startsWith('text/') || type === 'application/json' || type.includes('javascript') || type.includes('css') || type.includes('html')) {
-       // Using iframe for text blobs is a clean rendering loophole
        return <iframe src={blobUrl} style={{ width: '100%', height: '85vh', border: 'none', borderRadius: '8px', background: '#fff' }} title={file.originalName} />;
     } else {
        return (
@@ -36,14 +40,12 @@ const FileViewer = ({ file, blobUrl, onClose }) => {
           
           <div style={{ display: 'flex', gap: '24px' }}>
              <button onClick={async () => {
-                // We dynamically fetch the stored blob from memory to parse it via zip.js
+                if (!vaultKey) return alert("Cryptographic key missing. Refresh dashboard.");
                 const { downloadSecuredZip } = await import('../utils/zipUtils');
                 const rawBlob = await fetch(blobUrl).then(r => r.blob());
-                
-                // Uses the hardcoded prototype key (A8bC9dE...)
-                await downloadSecuredZip(file, rawBlob, "A8bC9dE0fH1iJ2kL3mN4oP5qR6sT7uV8wX9yZ012");
+                await downloadSecuredZip(file, rawBlob, vaultKey);
              }} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '500', transition: 'color 0.2s' }}>
-                <Download size={20} /> Secure Download
+                <Download size={20} /> Secure Download (.zip)
              </button>
 
              <div style={{ width: '1px', background: 'var(--border-color)' }}></div>

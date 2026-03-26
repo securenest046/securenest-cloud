@@ -101,4 +101,23 @@ router.get('/files/:userId', async (req, res) => {
     }
 });
 
+// Decommission file from vault registry
+router.delete('/:fileId', async (req, res) => {
+    try {
+        const file = await FileMeta.findById(req.params.fileId);
+        if (!file) return res.status(404).json({ success: false, message: 'Identity pointer not found.' });
+
+        // Atomically decrement user storage footprint
+        await User.findOneAndUpdate({ userId: file.userId }, { $inc: { totalStorageUsed: -file.fileSize } });
+
+        // Purge metadata from registry
+        await FileMeta.findByIdAndDelete(req.params.fileId);
+
+        res.status(200).json({ success: true, message: 'File decommissioned successfully.' });
+    } catch (error) {
+        console.error("Decommission Error:", error);
+        res.status(500).json({ success: false, error: 'Registry purge failed.' });
+    }
+});
+
 module.exports = router;
