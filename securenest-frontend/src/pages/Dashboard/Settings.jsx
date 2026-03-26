@@ -11,11 +11,41 @@ const Settings = () => {
   const [vaultKey, setVaultKey] = useState("Fetching unique vault hardware key...");
 
   useEffect(() => {
-    if (currentUser) {
-       axios.get(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/storage/files/${currentUser.uid}`)
-         .then(res => { if(res.data.success) setVaultKey(res.data.vaultKey); })
-         .catch(err => console.error("Key Sync Error", err));
-    }
+    const fetchKey = async () => {
+        if (!currentUser) return;
+        try {
+            const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+            const { data } = await axios.get(`${bUrl}/api/storage/files/${currentUser.uid}`);
+            
+            if (data.success) {
+                if (!data.vaultKey || data.vaultKey.startsWith("A8bC9dE0fH")) {
+                    const syncRes = await axios.post(`${bUrl}/api/auth/sync`, {
+                        userId: currentUser.uid,
+                        email: currentUser.email,
+                        fullName: currentUser.displayName || 'SecureNest User'
+                    });
+                    if (syncRes.data.success) setVaultKey(syncRes.data.user.encryptionKey);
+                } else {
+                    setVaultKey(data.vaultKey);
+                }
+            }
+        } catch (err) {
+            console.error("Key Sync Error", err);
+            // Final recovery sync
+            try {
+                const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+                const { data } = await axios.post(`${bUrl}/api/auth/sync`, {
+                    userId: currentUser.uid,
+                    email: currentUser.email
+                });
+                if (data.success) setVaultKey(data.user.encryptionKey);
+                else setVaultKey("Connection Error: Check Backend URL");
+            } catch (e) {
+                setVaultKey("Connection Error: Backend Unreachable");
+            }
+        }
+    };
+    fetchKey();
   }, [currentUser]);
 
   const [copied, setCopied] = useState(false);

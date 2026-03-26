@@ -74,8 +74,10 @@ const Home = () => {
               email: currentUser.email
           });
           if (data.success) setVaultKey(data.user.encryptionKey);
+          else setVaultKey("Connection Error: Check Backend URL");
       } catch (e) {
           console.error("Final recovery sync failed", e);
+          setVaultKey("Connection Error: Backend Unreachable");
       }
     }
   };
