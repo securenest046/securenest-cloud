@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, X } from 'lucide-react';
+import { 
+  Check, 
+  X,
+  User as UserIcon 
+} from 'lucide-react';
 import axios from 'axios';
+import { useAuth } from '../../context/AuthContext';
 import Loader from '../../components/Loader';
 import AnimatedBackground from '../../components/AnimatedBackground';
 
@@ -21,6 +26,7 @@ const Register = () => {
   });
 
   const navigate = useNavigate();
+  const { loginWithGoogle } = useAuth(); // Added for Google sync
 
   useEffect(() => {
     const p = formData.password;
@@ -45,7 +51,8 @@ const Register = () => {
     
     setIsSending(true);
     try {
-       const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/otp/send-otp`, { email: formData.email });
+       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+       const { data } = await axios.post(`${bUrl}/api/otp/send-otp`, { email: formData.email });
        if (data.success) {
            navigate('/otp-verify', { state: { email: formData.email, phone: formData.phone, password: formData.password, fullName: formData.fullName }});
        } else {
@@ -53,15 +60,31 @@ const Register = () => {
        }
     } catch (err) {
        console.error(err);
-       alert("Network synchronization error sending OTP");
+       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+       alert(`Sync Error: Could not reach backend at ${bUrl}\n\nDetail: ${err.message}`);
     } finally {
        setIsSending(false);
     }
   };
 
-  const handleGoogleSignIn = () => {
-    // google auth placeholder
-  }
+  const handleGoogleSignIn = async () => {
+    try {
+      const userCredentials = await loginWithGoogle();
+
+      // Ensure user is synced with backend MongoDB before landing on Home
+      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      await axios.post(`${bUrl}/api/auth/sync`, {
+          userId: userCredentials.user.uid,
+          email: userCredentials.user.email,
+          fullName: userCredentials.user.displayName || 'SecureNest User'
+      });
+
+      navigate('/home');
+    } catch (error) {
+      console.error(error);
+      alert(`Firebase Auth Error: ${error.message}\n\nHint: Verify your domain is authorized in Firebase Console.`);
+    }
+  };
 
   const Criterion = ({ met, text }) => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: met ? 'var(--success)' : 'var(--danger)', fontSize: '0.85rem', marginBottom: '6px' }}>
@@ -112,12 +135,12 @@ const Register = () => {
           )}
 
           <button type="submit" className="btn-primary" disabled={!Object.values(pwdCriteria).every(Boolean) || isSending} style={{ opacity: Object.values(pwdCriteria).every(Boolean) && !isSending ? 1 : 0.5, cursor: Object.values(pwdCriteria).every(Boolean) && !isSending ? 'pointer' : 'not-allowed' }}>
-            {isSending ? 'Transmitting Secure Code...' : 'Continue'}
+            {isSending ? 'Creating Secure Vault...' : 'Create Account'}
           </button>
           
           <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: 'var(--text-muted)' }}>
             <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
-            <span style={{ padding: '0 12px', fontSize: '0.9rem' }}>or sign up with</span>
+            <span style={{ padding: '0 12px', fontSize: '0.9rem' }}>or join with</span>
             <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
           </div>
 
@@ -128,12 +151,12 @@ const Register = () => {
             style={{ width: '100%', cursor: 'pointer', display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '10px', height: '50px' }}
           >
             <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" style={{ width: '18px' }}/>
-            <span style={{ fontWeight: '500' }}>Google</span>
+            <span style={{ fontWeight: '500' }}>Sign up with Google</span>
           </button>
         </form>
         
         <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-          Already have an account? <span className="link-text" onClick={() => navigate('/login')}>Sign in</span>
+          Already have a vault? <span className="link-text" onClick={() => navigate('/login')}>Login</span>
         </p>
       </div>
     </div>

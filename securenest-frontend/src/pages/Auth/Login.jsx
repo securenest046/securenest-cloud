@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AnimatedBackground from '../../components/AnimatedBackground';
@@ -21,7 +22,15 @@ const Login = () => {
 
   const handleGoogleSignIn = async () => {
     try {
-      await loginWithGoogle();
+      const userCredentials = await loginWithGoogle();
+
+      // Ensure user is synced with backend MongoDB before landing on Home
+      await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/auth/sync`, {
+          userId: userCredentials.user.uid,
+          email: userCredentials.user.email,
+          fullName: userCredentials.user.displayName || 'SecureNest User'
+      });
+
       navigate('/home');
     } catch (error) {
       console.error(error);
@@ -67,7 +76,7 @@ const Login = () => {
             <span className="link-text" style={{ fontSize: '0.9rem' }}>Forgot password?</span>
           </div>
 
-          <button type="submit" className="btn-primary" style={{ marginBottom: '16px' }}>Sign In</button>
+           <button type="submit" className="btn-primary" style={{ marginBottom: '16px' }}>Login</button>
           
           <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: 'var(--text-muted)' }}>
             <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>

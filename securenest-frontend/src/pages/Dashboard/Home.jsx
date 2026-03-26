@@ -40,15 +40,43 @@ const Home = () => {
   const fetchDashboardData = async () => {
     if (!currentUser) return;
     try {
-      // Connect to the real backend metadata pipeline
-      const { data } = await axios.get(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/storage/files/${currentUser.uid}`);
+      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      
+      // Attempt to retrieve vault metadata
+      const { data } = await axios.get(`${bUrl}/api/storage/files/${currentUser.uid}`);
+      
       if (data.success) {
          setUserFiles(data.files);
          setTotalStorageUsed(data.totalStorageUsed);
-         setVaultKey(data.vaultKey);
+         
+         // If key is missing or fallback, force a re-sync to be safe
+         if (!data.vaultKey || data.vaultKey.startsWith("A8bC9dE0fH")) {
+             console.log("Triggering identity re-sync for vault key...");
+             const syncRes = await axios.post(`${bUrl}/api/auth/sync`, {
+                 userId: currentUser.uid,
+                 email: currentUser.email,
+                 fullName: currentUser.displayName || 'SecureNest User'
+             });
+             if (syncRes.data.success) {
+                 setVaultKey(syncRes.data.user.encryptionKey);
+             }
+         } else {
+             setVaultKey(data.vaultKey);
+         }
       }
     } catch (error) {
       console.error("Dashboard Sync Failed", error);
+      // Final attempt to at least get the key if storage fetch failed
+      try {
+          const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+          const { data } = await axios.post(`${bUrl}/api/auth/sync`, {
+              userId: currentUser.uid,
+              email: currentUser.email
+          });
+          if (data.success) setVaultKey(data.user.encryptionKey);
+      } catch (e) {
+          console.error("Final recovery sync failed", e);
+      }
     }
   };
 
