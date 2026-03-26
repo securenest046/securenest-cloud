@@ -24,7 +24,8 @@ const Login = () => {
       await loginWithGoogle();
       navigate('/home');
     } catch (error) {
-      alert("Failed to sign in with Google.");
+      console.error(error);
+      alert(`Firebase Google Auth Error: ${error.message}\n\nHint: Verify your domain is authorized in Firebase Console.`);
     }
   };
 

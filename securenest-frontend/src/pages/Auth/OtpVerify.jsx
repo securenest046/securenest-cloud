@@ -39,7 +39,8 @@ const OtpVerify = () => {
         }
     } catch (error) {
         console.error(error);
-        alert(error.response?.data?.message || "Cryptographic Verification Failed. Check inputted code.");
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+        alert(`Verification Failed at ${backendUrl}: ${error.response?.data?.message || error.message}`);
     } finally {
         setIsVerifying(false);
     }
