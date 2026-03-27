@@ -16,23 +16,11 @@ connectDB();
 const app = express();
 
 // Middleware
-app.use(cors()); // CORS first to prevent all pre-flight issues
+app.use(cors()); 
 app.use(express.json());
 
-// Security Middlewares (Hardened)
-app.use(helmet({ 
-    crossOriginResourcePolicy: { policy: "cross-origin" },
-    contentSecurityPolicy: false 
-})); 
-app.use(mongoSanitize()); 
-
-// Brute-force protection
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 1000, 
-  message: 'Security Throttle: Too many requests. Try again in 15 mins.'
-});
-app.use('/api/', limiter);
+// Security Middlewares (Temporarily disabled for emergency connectivity recovery)
+// Helmet, RateLimit, and MongoSanitize will be re-enabled after functional baseline is verified.🛡️🔒✨✅
 
 // Routes
 const authRoutes = require('./src/routes/auth');

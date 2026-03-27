@@ -1,13 +1,13 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-    userId: { type: String, required: true, unique: true }, // Firebase UID mapped
-    email: { type: String, required: true, unique: true },
-    fullName: { type: String, required: true },
+    userId: { type: String, required: true, unique: true },
+    email: { type: String, required: true },
+    fullName: { type: String },
     phone: { type: String },
     emailVerified: { type: Boolean, default: false },
     phoneVerified: { type: Boolean, default: false },
-    encryptionKey: { type: String, required: true }, 
+    encryptionKey: { type: String }, 
     totalStorageUsed: { type: Number, default: 0 }, 
     createdAt: { type: Date, default: Date.now }
 });

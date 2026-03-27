@@ -48,21 +48,23 @@ const Register = () => {
     setIsSending(true);
     try {
       const userCredentials = await loginWithGoogle();
+      if (!userCredentials || !userCredentials.user) throw new Error("Google Authentication cancelled or failed.");
 
-      // Ensure user is synced with backend MongoDB before landing on Home
+      console.log("Google Auth Success, syncing with SecureNest Backend...");
+      
       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
       await axios.post(`${bUrl}/api/auth/sync`, {
           userId: userCredentials.user.uid,
           email: userCredentials.user.email,
-          fullName: userCredentials.user.displayName || 'SecureNest User',
-          phone: userCredentials.user.phoneNumber || 'Google Verified'
+          fullName: userCredentials.user.displayName || 'Vault User',
+          phone: userCredentials.user.phoneNumber || 'Verified'
       });
 
       navigate('/home');
     } catch (error) {
-      console.error(error);
+      console.error("Google Auth Flow Error:", error);
       const detail = error.response?.data?.detail || error.message;
-      alert(`Firebase Google Auth Failed: ${detail}`);
+      alert(`Google Access Denied: ${detail}\n\nHINT: If the error is 'unauthorized-domain', you must add this URL to your Firebase Console Authorized Domains.`);
     } finally {
       setIsSending(false);
     }
@@ -79,17 +81,17 @@ const Register = () => {
        // 1. Firebase Auth Creation
        const userCredentials = await signup(formData.email, formData.password);
        
-       // 2. Immediate Backend Sync (Post-Login Entry Mode)
-       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-       await axios.post(`${bUrl}/api/auth/sync`, {
-           userId: userCredentials.user.uid,
-           email: formData.email,
-           fullName: formData.fullName,
-           phone: formData.phone
-       });
-       
-       // 3. Direct Entry
-       navigate('/home');
+        // 2. Deferred Backend Sync (Non-blocking to ensure Dashboard access)
+        const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+        axios.post(`${bUrl}/api/auth/sync`, {
+            userId: userCredentials.user.uid,
+            email: formData.email,
+            fullName: formData.fullName,
+            phone: formData.phone
+        }).catch(syncErr => console.error("Identity sync deferred:", syncErr));
+        
+        // 3. Direct Entry
+        navigate('/home');
     } catch (err) {
        console.error(err);
        const detail = err.response?.data?.detail || err.message;

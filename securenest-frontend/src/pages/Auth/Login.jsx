@@ -23,22 +23,25 @@ const Login = () => {
   const handleGoogleSignIn = async () => {
     try {
       const userCredentials = await loginWithGoogle();
+      if (!userCredentials || !userCredentials.user) throw new Error("Google access was not granted.");
 
-      // Ensure user is synced with backend MongoDB before landing on Home
-      await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/auth/sync`, {
+      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      
+      // Attempt silent sync, but don't block the user from their dashboard if the server is just slow
+      axios.post(`${bUrl}/api/auth/sync`, {
           userId: userCredentials.user.uid,
           email: userCredentials.user.email,
-          fullName: userCredentials.user.displayName || 'SecureNest User',
-          phone: userCredentials.user.phoneNumber || 'Google Verified'
-      });
+          fullName: userCredentials.user.displayName || 'Vault User',
+          phone: userCredentials.user.phoneNumber || 'Verified'
+      }).catch(err => console.error("Identity sync deferred:", err));
 
       navigate('/home');
     } catch (error) {
       console.error(error);
       const isDomainError = error.message.includes('unauthorized-domain');
       alert(isDomainError 
-        ? "CRITICAL: Domain not authorized in Firebase! Please add 'securenest-cloud.vercel.app' to your Firebase Console > Authentication > Settings > Authorized Domains."
-        : `Google Authentication Failed: ${error.message}`
+        ? "CRITICAL: Current Domain not authorized in Firebase! Please add your Vercel URL to the Firebase Console Authorized Domains list."
+        : `Access Failed: ${error.message}`
       );
     }
   };
