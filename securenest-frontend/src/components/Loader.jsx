@@ -1,7 +1,6 @@
 import React from 'react';
-import { Shield, Lock } from 'lucide-react';
 
-const Loader = ({ fullScreen = true, message = "Securing Connection..." }) => {
+const Loader = ({ fullScreen = true, message = "Synchronizing Vault..." }) => {
   return (
     <div style={{
       position: fullScreen ? 'fixed' : 'absolute',
@@ -16,96 +15,71 @@ const Loader = ({ fullScreen = true, message = "Securing Connection..." }) => {
       overflow: 'hidden'
     }}>
       <style>{`
-        @keyframes orbit {
-          from { transform: rotate(0deg) translateX(60px) rotate(0deg); }
-          to { transform: rotate(360deg) translateX(60px) rotate(-360deg); }
+        @keyframes worm-move {
+          0%, 100% { transform: translateX(-50px) scaleX(1); }
+          25% { transform: translateX(-20px) scaleX(1.5); }
+          50% { transform: translateX(20px) scaleX(1); }
+          75% { transform: translateX(50px) scaleX(0.8); }
         }
-        @keyframes scan {
-          0% { top: -10%; opacity: 0; }
-          20% { opacity: 1; }
-          80% { opacity: 1; }
-          100% { top: 110%; opacity: 0; }
+        @keyframes segment-pulse {
+          0%, 100% { transform: scale(1); opacity: 0.3; }
+          50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 15px var(--accent-primary); }
         }
-        @keyframes pulse-shield {
-          0%, 100% { transform: scale(1); filter: drop-shadow(0 0 15px rgba(59, 130, 246, 0.4)); }
-          50% { transform: scale(1.05); filter: drop-shadow(0 0 35px rgba(59, 130, 246, 0.7)); }
+        @keyframes worm-container {
+           0% { transform: translateX(-30px); }
+           100% { transform: translateX(30px); }
         }
-        @keyframes ring-rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        .data-particle {
-          position: absolute;
-          width: 4px;
-          height: 4px;
+        .worm-segment {
+          width: 12px;
+          height: 12px;
           background: var(--accent-primary);
           border-radius: 50%;
-          filter: blur(1px);
+          margin: 0 2px;
+          display: inline-block;
         }
       `}</style>
 
-      <div style={{ position: 'relative', width: '200px', height: '200px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div style={{ position: 'relative', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         
-        {/* Outer Rotating Ring */}
+        {/* The Cyber-Worm (Squeezing Body Animation) */}
         <div style={{ 
-          position: 'absolute', width: '100%', height: '100%', 
-          border: '2px dashed rgba(59, 130, 246, 0.3)', 
-          borderRadius: '50%', 
-          animation: 'ring-rotate 10s linear infinite' 
-        }}></div>
-
-        {/* Mid Rotating Ring */}
-        <div style={{ 
-          position: 'absolute', width: '80%', height: '80%', 
-          border: '1px solid rgba(59, 130, 246, 0.1)', 
-          borderRadius: '50%', 
-          borderTop: '2px solid var(--accent-primary)',
-          animation: 'ring-rotate 2s cubic-bezier(0.5, 0.2, 0.5, 0.8) infinite' 
-        }}></div>
-
-        {/* The Shield Core */}
-        <div style={{ 
-          position: 'relative', width: '100px', height: '110px', 
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          animation: 'pulse-shield 3s ease-in-out infinite'
+            display: 'flex', 
+            alignItems: 'center',
+            animation: 'worm-container 4s ease-in-out infinite alternate' 
         }}>
-          <svg viewBox="0 0 100 115" style={{ position: 'absolute', width: '100%', height: '100%', fill: 'rgba(59, 130, 246, 0.05)', stroke: 'var(--accent-primary)', strokeWidth: '2' }}>
-            <path d="M50 0 L95 25 L95 75 C95 100 75 110 50 115 C25 110 5 100 5 75 L5 25 Z" />
-          </svg>
-          <Lock size={40} color="var(--accent-primary)" style={{ zIndex: 2, position: 'relative', top: '-5px' }} />
-          
-          {/* Scanning Beam */}
-          <div style={{ 
-            position: 'absolute', left: '10%', right: '10%', height: '4px', 
-            background: 'linear-gradient(90deg, transparent, var(--accent-primary), transparent)',
-            boxShadow: '0 0 15px var(--accent-primary)',
-            animation: 'scan 2.5s linear infinite',
-            zIndex: 3
-          }} />
+          {[...Array(6)].map((_, i) => (
+            <div key={i} className="worm-segment" style={{
+              animation: 'segment-pulse 1.2s ease-in-out infinite',
+              animationDelay: `${i * 0.15}s`,
+              filter: `hue-rotate(${i * 10}deg)`
+            }}></div>
+          ))}
         </div>
 
-        {/* Orbiting Data Particles */}
-        {[...Array(6)].map((_, i) => (
-          <div key={i} className="data-particle" style={{
-            animation: `orbit ${2 + i * 0.5}s linear infinite`,
-            animationDelay: `-${i * 0.3}s`,
-            opacity: 1 - (i * 0.1)
-          }}></div>
-        ))}
+        {/* Dynamic Glow Trail */}
+        <div style={{
+            position: 'absolute',
+            width: '120px',
+            height: '2px',
+            background: 'linear-gradient(90deg, transparent, var(--accent-primary), transparent)',
+            bottom: '20%',
+            opacity: 0.2,
+            filter: 'blur(2px)'
+        }}></div>
       </div>
 
       <p style={{ 
-          marginTop: '40px', 
+          marginTop: '30px', 
           color: 'var(--text-main)', 
-          fontSize: '0.9rem', 
-          letterSpacing: '4px', 
+          fontSize: '0.85rem', 
+          letterSpacing: '5px', 
           fontWeight: '700', 
           textTransform: 'uppercase',
           opacity: 0.8,
           textAlign: 'center'
       }}>
           {message}
-          <span style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '8px', letterSpacing: '2px' }}>Encryption Vault Syncing</span>
+          <span style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-muted)', marginTop: '8px', letterSpacing: '2px' }}>Data Worm Processing</span>
       </p>
     </div>
   );
