@@ -11,41 +11,31 @@ const Settings = () => {
   const [vaultKey, setVaultKey] = useState("Fetching unique vault hardware key...");
 
   useEffect(() => {
-    const fetchKey = async () => {
+    const fetchData = async () => {
         if (!currentUser) return;
         try {
             const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-            const { data } = await axios.get(`${bUrl}/api/storage/files/${currentUser.uid}`);
             
-            if (data.success) {
-                if (!data.vaultKey || data.vaultKey.startsWith("A8bC9dE0fH")) {
-                    const syncRes = await axios.post(`${bUrl}/api/auth/sync`, {
-                        userId: currentUser.uid,
-                        email: currentUser.email,
-                        fullName: currentUser.displayName || 'SecureNest User'
-                    });
-                    if (syncRes.data.success) setVaultKey(syncRes.data.user.encryptionKey);
-                } else {
-                    setVaultKey(data.vaultKey);
-                }
+            // 1. Fetch User Data
+            const syncRes = await axios.post(`${bUrl}/api/auth/sync`, {
+                userId: currentUser.uid,
+                email: currentUser.email
+            });
+            if (syncRes.data.success) {
+                setUserData(syncRes.data.user);
+                setVaultKey(syncRes.data.user.encryptionKey);
+                setFormData(prev => ({
+                    ...prev,
+                    fullName: syncRes.data.user.fullName || prev.fullName,
+                    email: syncRes.data.user.email || prev.email
+                }));
             }
         } catch (err) {
-            console.error("Key Sync Error", err);
-            // Final recovery sync
-            try {
-                const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-                const { data } = await axios.post(`${bUrl}/api/auth/sync`, {
-                    userId: currentUser.uid,
-                    email: currentUser.email
-                });
-                if (data.success) setVaultKey(data.user.encryptionKey);
-                else setVaultKey("Connection Error: Check Backend URL");
-            } catch (e) {
-                setVaultKey("Connection Error: Backend Unreachable");
-            }
+            console.error("Settings Sync Error", err);
+            setVaultKey("Connection Error: Backend Unreachable");
         }
     };
-    fetchKey();
+    fetchData();
   }, [currentUser]);
 
   const [copied, setCopied] = useState(false);
@@ -55,30 +45,55 @@ const Settings = () => {
       setTimeout(() => setCopied(false), 2000);
   };
 
+  const [userData, setUserData] = useState(null);
   const [formData, setFormData] = useState({
     fullName: currentUser?.displayName || '',
-    phone: currentUser?.phoneNumber || '',
     email: currentUser?.email || '',
     oldPassword: '',
     newPassword: '',
     confirmNewPassword: ''
   });
 
-  // Isolated Mock Phone OTP Pipeline (as Node.js backend SMS is fundamentally paid-only in real world pipelines)
-  const [phoneVerification, setPhoneVerification] = useState({ state: 'idle', otp: '' });
+  // Email Verification Logic
+  const [emailVerification, setEmailVerification] = useState({ state: 'idle', otp: '', loading: false });
 
-  const handleVerifyPhoneReq = () => {
-      if(!formData.phone) return alert("Please enter a phone number to bind to your vault.");
-      alert(`Simulation: System requested SMS gateway to transmit code '123456' to ${formData.phone}`);
-      setPhoneVerification({ state: 'pending', otp: '' });
+  const handleVerifyEmailReq = async () => {
+      setEmailVerification(prev => ({ ...prev, loading: true }));
+      try {
+          const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+          await axios.post(`${bUrl}/api/otp/send-otp`, { email: formData.email });
+          alert(`Verification code dispatched to ${formData.email}`);
+          setEmailVerification({ state: 'pending', otp: '', loading: false });
+      } catch (err) {
+          alert("Failed to send OTP. Check SMTP settings.");
+          setEmailVerification(prev => ({ ...prev, loading: false }));
+      }
   };
 
-  const handleVerifyPhoneSubmit = () => {
-      if(phoneVerification.otp === '123456') {
-          alert(`Cryptographic phone validation successful for ${formData.phone}`);
-          setPhoneVerification({ state: 'verified', otp: '' });
-      } else {
+  const handleVerifyEmailSubmit = async () => {
+      setEmailVerification(prev => ({ ...prev, loading: true }));
+      try {
+          const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+          const { data } = await axios.post(`${bUrl}/api/otp/verify-otp`, { email: formData.email, otp: emailVerification.otp });
+          
+          if (data.success) {
+              // Update backend user status
+              await axios.post(`${bUrl}/api/auth/sync`, {
+                  userId: currentUser.uid,
+                  email: currentUser.email,
+                  emailVerified: true
+              });
+              alert("Email Identity Verified!");
+              setEmailVerification({ state: 'verified', otp: '', loading: false });
+              setUserData(prev => ({ ...prev, emailVerified: true }));
+          } else {
+              alert("Invalid Cryptographic Signature Code.");
+              setEmailVerification(prev => ({ ...prev, loading: false }));
+          }
+      } catch (err) {
+          console.error("Email verification error:", err);
           alert("Invalid Cryptographic Signature Code.");
+          setEmailVerification(prev => ({ ...prev, loading: false }));
       }
   };
 
@@ -109,31 +124,28 @@ const Settings = () => {
          <form onSubmit={handleSave}>
             <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '20px', color: 'var(--accent-primary)' }}>Personal Information</h3>
             <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
-               <div className="input-group" style={{ marginBottom: 0 }}>
+               <div className="input-group" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
                   <label>Full Name</label>
                   <input type="text" name="fullName" className="input-field" value={formData.fullName} onChange={handleChange} required />
                </div>
-               <div className="input-group" style={{ marginBottom: 0 }}>
-                   <label>Phone Number {phoneVerification.state === 'verified' && <span style={{ color: 'var(--success)' }}>✓ Verified</span>}</label>
-                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                       <input type="tel" name="phone" className="input-field" value={formData.phone} onChange={handleChange} required disabled={phoneVerification.state === 'verified'} placeholder="Enter phone number" style={{ minWidth: 0, flex: '1 1 180px' }}/>
-                       {phoneVerification.state === 'idle' && (
-                           <button type="button" onClick={handleVerifyPhoneReq} style={{ padding: '0 16px', height: '44px', background: 'var(--accent-primary)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: '500', flex: '0 0 auto' }}>Verify</button>
-                       )}
-                       {phoneVerification.state === 'pending' && (
-                           <button type="button" disabled style={{ padding: '0 16px', height: '44px', background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-muted)', flex: '0 0 auto' }}>Sent</button>
-                       )}
-                   </div>
-                   {phoneVerification.state === 'pending' && (
-                       <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-                           <input type="text" placeholder="Enter 6-digit Code" className="input-field" value={phoneVerification.otp} onChange={(e) => setPhoneVerification({...phoneVerification, otp: e.target.value})} maxLength="6" style={{ letterSpacing: '4px', textAlign: 'center', minWidth: 0, flex: '1 1 140px' }} />
-                           <button type="button" onClick={handleVerifyPhoneSubmit} className="btn-primary" style={{ padding: '0 24px', width: 'auto', flex: '0 0 auto' }}>Submit Code</button>
-                       </div>
-                   )}
-               </div>
-               <div className="input-group" style={{ marginBottom: 0, gridColumn: 'span 1' }}>
-                  <label>Email Address</label>
-                  <input type="email" name="email" className="input-field" value={formData.email} onChange={handleChange} required style={{ minWidth: 0, width: '100%' }} />
+               <div className="input-group" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
+                  <label>Email Address {(userData?.emailVerified || emailVerification.state === 'verified') && <span style={{ color: 'var(--success)' }}>✓ Verified</span>}</label>
+                  <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <input type="email" name="email" className="input-field" value={formData.email} onChange={handleChange} required disabled={userData?.emailVerified || emailVerification.state === 'verified'} style={{ minWidth: 0, flex: '1 1 180px' }} />
+                      {!userData?.emailVerified && emailVerification.state === 'idle' && (
+                          <button type="button" onClick={handleVerifyEmailReq} disabled={emailVerification.loading} style={{ padding: '0 16px', height: '44px', background: 'var(--accent-primary)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: '500', flex: '0 0 auto' }}>
+                              {emailVerification.loading ? '...' : 'Verify'}
+                          </button>
+                      )}
+                  </div>
+                  {emailVerification.state === 'pending' && (
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+                          <input type="text" placeholder="6-digit OTP" className="input-field" value={emailVerification.otp} onChange={(e) => setEmailVerification({...emailVerification, otp: e.target.value})} maxLength="6" style={{ letterSpacing: '4px', textAlign: 'center', minWidth: 0, flex: '1 1 140px' }} />
+                          <button type="button" onClick={handleVerifyEmailSubmit} disabled={emailVerification.loading} className="btn-primary" style={{ padding: '0 24px', width: 'auto', flex: '0 0 auto' }}>
+                              {emailVerification.loading ? '...' : 'Submit'}
+                          </button>
+                      </div>
+                  )}
                </div>
             </div>
 

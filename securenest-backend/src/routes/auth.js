@@ -14,7 +14,7 @@ const generateEncryptionKey = () => {
 
 // Sync user from Firebase to DB and establish their Encryption Vault Key
 router.post('/sync', async (req, res) => {
-    const { userId, email, fullName, phone } = req.body;
+    const { userId, email, fullName } = req.body;
     
     if (!userId || !email) {
         return res.status(400).json({ success: false, message: 'Missing core identity parameters.' });
@@ -29,9 +29,7 @@ router.post('/sync', async (req, res) => {
                 userId,
                 email,
                 fullName: fullName || email.split('@')[0],
-                phone: phone || 'N/A', // Now strictly passed from registration
                 emailVerified: false, // Will be updated after post-login OTP success
-                phoneVerified: false,
                 encryptionKey: generateEncryptionKey()
             });
             await user.save();

@@ -14,8 +14,7 @@ const Register = () => {
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
-    password: '',
-    phone: '' // Added for sync with verification payload
+    password: ''
   });
   
   const [pwdCriteria, setPwdCriteria] = useState({
@@ -56,8 +55,7 @@ const Register = () => {
       await axios.post(`${bUrl}/api/auth/sync`, {
           userId: userCredentials.user.uid,
           email: userCredentials.user.email,
-          fullName: userCredentials.user.displayName || 'Vault User',
-          phone: userCredentials.user.phoneNumber || 'Verified'
+          fullName: userCredentials.user.displayName || 'Vault User'
       });
 
       navigate('/home');
@@ -74,7 +72,6 @@ const Register = () => {
     e.preventDefault();
     const allMet = Object.values(pwdCriteria).every(Boolean);
     if (!allMet) return;
-    if (!formData.phone) return alert("Phone number is required for SecureVault identity.");
     
     setIsSending(true);
     try {
@@ -86,8 +83,7 @@ const Register = () => {
         axios.post(`${bUrl}/api/auth/sync`, {
             userId: userCredentials.user.uid,
             email: formData.email,
-            fullName: formData.fullName,
-            phone: formData.phone
+            fullName: formData.fullName
         }).catch(syncErr => console.error("Identity sync deferred:", syncErr));
         
         // 3. Direct Entry
@@ -125,11 +121,6 @@ const Register = () => {
             <input type="text" name="fullName" className="input-field" onChange={handleChange} required />
           </div>
           
-          <div className="input-group" style={{ marginBottom: '16px' }}>
-            <label>Phone Number (Required)</label>
-            <input type="tel" name="phone" className="input-field" onChange={handleChange} placeholder="+1 (555) 000-0000" required />
-          </div>
-
           <div className="input-group" style={{ marginBottom: '16px' }}>
             <label>Email Address</label>
             <input type="email" name="email" className="input-field" onChange={handleChange} required />

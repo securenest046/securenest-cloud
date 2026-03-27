@@ -31,8 +31,7 @@ const Login = () => {
       axios.post(`${bUrl}/api/auth/sync`, {
           userId: userCredentials.user.uid,
           email: userCredentials.user.email,
-          fullName: userCredentials.user.displayName || 'Vault User',
-          phone: userCredentials.user.phoneNumber || 'Verified'
+          fullName: userCredentials.user.displayName || 'Vault User'
       }).catch(err => console.error("Identity sync deferred:", err));
 
       navigate('/home');
