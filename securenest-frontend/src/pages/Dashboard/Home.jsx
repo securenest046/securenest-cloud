@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone } from 'lucide-react';
+import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 
 const Home = () => {
@@ -37,6 +37,7 @@ const Home = () => {
 
   const MAX_STORAGE = 50 * 1024 * 1024 * 1024; 
   const [userData, setUserData] = useState(null);
+  const [showVaultKey, setShowVaultKey] = useState(false);
 
   const fetchDashboardData = async () => {
     if (!currentUser) return;
@@ -314,9 +315,22 @@ const Home = () => {
                       {copied ? <><Check size={14}/> Copied</> : <><Copy size={14}/> Copy</>}
                    </button>
                 </div>
-                <div style={{ background: 'rgba(0,0,0,0.4)', padding: '12px', borderRadius: '8px', fontSize: '0.8rem', fontFamily: 'monospace', color: 'var(--success)', wordBreak: 'break-all', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
-                  {vaultKey}
+                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                <div style={{ fontFamily: 'monospace', color: 'var(--success)', fontSize: '0.85rem', wordBreak: 'break-all', letterSpacing: showVaultKey ? '1px' : '4px', textAlign: 'center', flex: 1 }}>
+                  {showVaultKey ? vaultKey : '••••••••••••••••••••'}
                 </div>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button 
+                    onClick={() => setShowVaultKey(!showVaultKey)} 
+                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                  >
+                    {showVaultKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                  <button onClick={handleCopy} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    {copied ? <Check size={16} /> : <Copy size={16} />}
+                  </button>
+                </div>
+              </div>
               </div>
               <button className="btn-primary" style={{ background: 'transparent', border: '1px solid var(--border-color)', marginBottom: '12px', color: '#fff' }} onClick={() => navigate('/settings')}>
                 <SettingsIcon size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '8px' }}/> Manage Account Settings
@@ -418,8 +432,8 @@ const Home = () => {
              </div>
           ) : viewMode === 'list' ? (
              <div className="file-grid-adaptive" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                 {sortedFiles.map(file => (
-                    <div key={file._id} onClick={() => handleFileClick(file)} className="file-card-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: '12px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap', position: 'relative' }} onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 1); }} onMouseOut={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 0); }}>
+                  {sortedFiles.map(file => (
+                     <div key={file._id} onClick={() => handleFileClick(file)} className="file-card-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: '12px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap', position: 'relative' }} onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 1); }} onMouseOut={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 0); }}>
                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 auto', minWidth: '150px' }}>
                           <div style={{ width: '30px', height: '30px', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(59,130,246,0.1)' }}>
                              {blobCache[file._id] && file.mimeType.startsWith('image/') ? (
@@ -445,38 +459,38 @@ const Home = () => {
                              <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{new Date(file.createdAt).toLocaleDateString()}</span>
                           </div>
                        </div>
-                    </div>
-                 ))}
-              </div>
-           ) : (
-              <div className="file-grid-adaptive" style={{ display: 'grid', gridTemplateColumns: viewMode === 'large' ? 'repeat(auto-fill, minmax(320px, 1fr))' : viewMode === 'small' ? 'repeat(auto-fill, minmax(130px, 1fr))' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
-                 {sortedFiles.map(file => (
-                     <div key={file._id} onClick={() => handleFileClick(file)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: viewMode === 'small' ? '12px' : '20px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s', overflow: 'hidden' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 1; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 0; }}>
-                         
-                         {/* Card Content */}
-                         <div style={{ width: viewMode === 'small' ? '36px' : '64px', height: viewMode === 'small' ? '36px' : '64px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', color: 'var(--accent-primary)' }}>
-                            {blobCache[file._id] && file.mimeType.startsWith('image/') ? (
-                               <img src={blobCache[file._id]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-                            ) : file.mimeType.startsWith('image/') ? (
-                               <ImageIcon size={viewMode === 'small' ? 20 : 32} />
-                            ) : file.mimeType.startsWith('video/') ? (
-                               <Video size={viewMode === 'small' ? 20 : 32} />
-                            ) : (
-                               <File size={viewMode === 'small' ? 20 : 32} />
-                            )}
-                         </div>
-                         <h4 style={{ fontSize: viewMode === 'small' ? '0.85rem' : '1.05rem', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalName}</h4>
-                         <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{(file.fileSize / 1024 / 1024).toFixed(2)} MB • {new Date(file.createdAt).toLocaleDateString()}</p>
-                         
-                          {/* Action Overlay */}
-                          <div className="card-actions-overlay" style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', opacity: 0.3, transition: 'opacity 0.2s' }}>
-                             <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); }} style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', color: 'var(--accent-primary)', cursor: 'pointer' }} title="Secure Download"><Download size={14} /></button>
-                            <button onClick={(e) => handleDelete(e, file._id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '8px', color: 'var(--danger)', cursor: 'pointer' }} title="Decommission File"><Trash2 size={14} /></button>
-                         </div>
                      </div>
-                 ))}
-             </div>
-           )}
+                  ))}
+               </div>
+            ) : (
+               <div className="file-grid-adaptive" style={{ display: 'grid', gridTemplateColumns: viewMode === 'large' ? 'repeat(auto-fill, minmax(320px, 1fr))' : viewMode === 'small' ? 'repeat(auto-fill, minmax(130px, 1fr))' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
+                  {sortedFiles.map(file => (
+                      <div key={file._id} onClick={() => handleFileClick(file)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: viewMode === 'small' ? '12px' : '20px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s', overflow: 'hidden' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 1; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 0; }}>
+                          
+                          {/* Card Content */}
+                          <div style={{ width: viewMode === 'small' ? '36px' : '64px', height: viewMode === 'small' ? '36px' : '64px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.1)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', color: 'var(--accent-primary)' }}>
+                             {blobCache[file._id] && file.mimeType.startsWith('image/') ? (
+                                <img src={blobCache[file._id]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                             ) : file.mimeType.startsWith('image/') ? (
+                                <ImageIcon size={viewMode === 'small' ? 20 : 32} />
+                             ) : file.mimeType.startsWith('video/') ? (
+                                <Video size={viewMode === 'small' ? 20 : 32} />
+                             ) : (
+                                <File size={viewMode === 'small' ? 20 : 32} />
+                             )}
+                          </div>
+                          <h4 style={{ fontSize: viewMode === 'small' ? '0.85rem' : '1.05rem', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalName}</h4>
+                          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{(file.fileSize / 1024 / 1024).toFixed(2)} MB • {new Date(file.createdAt).toLocaleDateString()}</p>
+                          
+                           {/* Action Overlay */}
+                           <div className="card-actions-overlay" style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', opacity: 0.3, transition: 'opacity 0.2s' }}>
+                              <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); }} style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', color: 'var(--accent-primary)', cursor: 'pointer' }} title="Secure Download"><Download size={14} /></button>
+                             <button onClick={(e) => handleDelete(e, file._id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '8px', color: 'var(--danger)', cursor: 'pointer' }} title="Decommission File"><Trash2 size={14} /></button>
+                          </div>
+                      </div>
+                  ))}
+              </div>
+            )}
         </div>
 
         {/* Right 25% Component - Telemetry Ring Data (Acts as Drawer on Mobile) */}

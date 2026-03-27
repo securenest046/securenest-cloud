@@ -3,7 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Check, 
   X,
-  User as UserIcon 
+  User as UserIcon,
+  Eye,
+  EyeOff 
 } from 'lucide-react';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +13,7 @@ import Loader from '../../components/Loader';
 import AnimatedBackground from '../../components/AnimatedBackground';
 
 const Register = () => {
+  const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     fullName: '',
     email: '',
@@ -25,7 +28,7 @@ const Register = () => {
   });
 
   const navigate = useNavigate();
-  const { signup, loginWithGoogle } = useAuth(); // Added for Google sync🛡️🔒✨✅
+  const { signup, loginWithGoogle } = useAuth();
 
   useEffect(() => {
     const p = formData.password;
@@ -126,9 +129,25 @@ const Register = () => {
             <input type="email" name="email" className="input-field" onChange={handleChange} required />
           </div>
 
-          <div className="input-group" style={{ marginBottom: '16px' }}>
+          <div className="input-group" style={{ marginBottom: '24px' }}>
             <label>Master Password</label>
-            <input type="password" name="password" className="input-field" onChange={handleChange} required />
+            <div style={{ position: 'relative' }}>
+              <input 
+                type={showPassword ? "text" : "password"} 
+                name="password" 
+                className="input-field" 
+                onChange={handleChange} 
+                required 
+                style={{ paddingRight: '48px' }}
+              />
+              <button 
+                type="button" 
+                onClick={() => setShowPassword(!showPassword)}
+                style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
+            </div>
           </div>
 
           {formData.password && (
