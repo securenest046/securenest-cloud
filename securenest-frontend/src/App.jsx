@@ -9,9 +9,9 @@ import Settings from './pages/Dashboard/Settings';
 import './index.css';
 
 const PrivateRoute = ({ children }) => {
-  const { currentUser, loading } = useAuth();
+  const { currentUser, loading, isSwitching } = useAuth();
   if (loading) return null; // Avoid flicker during auth check
-  return currentUser ? children : <Navigate to="/login" />;
+  return (currentUser || isSwitching) ? children : <Navigate to="/login" />;
 };
 
 function App() {

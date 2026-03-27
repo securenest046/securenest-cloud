@@ -24,6 +24,7 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [currentUser, setCurrentUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isSwitching, setIsSwitching] = useState(false);
 
   // Note: The prompt instructed that users can reset password by their 'user-id'.
   // In Firebase, Email acts as the universally unique User ID.
@@ -80,7 +81,9 @@ export const AuthProvider = ({ children }) => {
     resetPassword,
     loginWithGoogle,
     updateUserPassword,
-    updateUserProfile
+    updateUserProfile,
+    isSwitching,
+    setIsSwitching
   };
 
   return (

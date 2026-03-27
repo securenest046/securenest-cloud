@@ -6,7 +6,7 @@ import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settin
 import FileViewer from '../../components/FileViewer';
 
 const Home = () => {
-  const { currentUser, logout, login, signup, loginWithGoogle } = useAuth();
+  const { currentUser, logout, login, signup, loginWithGoogle, isSwitching, setIsSwitching } = useAuth();
   const navigate = useNavigate();
 
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -384,6 +384,7 @@ const Home = () => {
                         <div key={acc.uid} className="recent-account-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: isActive ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid transparent', cursor: isActive ? 'default' : 'pointer', transition: 'all 0.2s', position: 'relative' }} 
                           onClick={() => { 
                             if (isActive) return;
+                            setIsSwitching(true);
                             logout().then(() => {
                                setAccountFormData(prev => ({ ...prev, email: acc.email }));
                                setIsEmailLocked(true);
@@ -649,7 +650,7 @@ const Home = () => {
       {showAccountModal && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.3s ease-out' }}>
           <div className="glass-panel" style={{ width: '450px', padding: '40px', position: 'relative', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
-            <button onClick={() => setShowAccountModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+            <button onClick={() => { setIsSwitching(false); setShowAccountModal(false); }} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
             
             {accountModalView === 'options' && (
               <div style={{ textAlign: 'center' }}>
@@ -688,6 +689,7 @@ const Home = () => {
                            if (accountFormData.password !== accountFormData.confirmPassword) throw new Error("Passwords mismatch.");
                            await signup(accountFormData.email, accountFormData.password);
                        }
+                       setIsSwitching(false);
                        setShowAccountModal(false);
                    } catch (err) { alert(err.message); } finally { setIsAccountLoading(false); }
                 }}>
