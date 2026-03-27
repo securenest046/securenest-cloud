@@ -236,36 +236,48 @@ body {
   background: rgba(255, 255, 255, 0.25);
 }
 
-/* Session Indicators */
-.dot-indicator {
-  width: 8px;
-  height: 8px;
+/* Session Indicators - Glowing Circular Borders */
+.avatar-container {
+  position: relative;
+  width: 32px;
+  height: 32px;
   border-radius: 50%;
-  position: absolute;
-  top: 6px;
-  left: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  padding: 2px;
 }
 
-.dot-green {
-  background: var(--success);
-  box-shadow: 0 0 8px var(--success);
-  animation: pulse-green 2s infinite;
+.avatar-glow-green {
+  border: 2px solid rgba(16, 185, 129, 0.6);
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.4);
+  animation: border-pulse-green 2s infinite;
 }
 
-.dot-red {
-  background: var(--danger);
-  box-shadow: 0 0 8px var(--danger);
-  animation: pulse-red 2s infinite;
+.avatar-glow-red {
+  border: 2px solid rgba(239, 68, 68, 0.6);
+  box-shadow: 0 0 12px rgba(239, 68, 68, 0.4);
+  animation: border-pulse-red 2s infinite;
 }
 
-@keyframes pulse-green {
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-  70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+@keyframes border-pulse-green {
+  0% { border-color: rgba(16, 185, 129, 0.6); box-shadow: 0 0 5px rgba(16, 185, 129, 0.4); }
+  50% { border-color: rgba(16, 185, 129, 1); box-shadow: 0 0 15px rgba(16, 185, 129, 0.8); }
+  100% { border-color: rgba(16, 185, 129, 0.6); box-shadow: 0 0 5px rgba(16, 185, 129, 0.4); }
 }
 
-@keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-  70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+@keyframes border-pulse-red {
+  0% { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 0 5px rgba(239, 68, 68, 0.4); }
+  50% { border-color: rgba(239, 68, 68, 1); box-shadow: 0 0 15px rgba(239, 68, 68, 0.8); }
+  100% { border-color: rgba(239, 68, 68, 0.6); box-shadow: 0 0 5px rgba(239, 68, 68, 0.4); }
+}
+
+/* Settings Grid Refusal to Intersect */
+.settings-password-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 24px;
+  align-items: start;
+  width: 100%;
 }
