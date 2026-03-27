@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, File, ImageIcon, Video, User, Settings as SettingsIcon, LogOut, Key, Download, ChevronLeft, X, RefreshCw, Copy, Check, Fingerprint, Globe, Mail, UserPlus, Eye, EyeOff, ShieldAlert, LayoutGrid, Grid, Maximize2, List as ListIcon, Trash2 } from 'lucide-react';
+import { File, LogOut, Key, Download, ChevronLeft, X, Copy, Fingerprint, Eye, EyeOff, ShieldAlert, Trash2 } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 
 const Home = () => {
@@ -360,7 +360,7 @@ const Home = () => {
         </div>
         <div className="dashboard-right" style={{ flex: '0 0 calc(25% - 20px)', padding: '36px', background: 'var(--bg-card)', borderRadius: '24px', height: 'fit-content' }}>
            <h3 style={{ marginBottom: '24px' }}>Storage Insight</h3>
-           <div style={{ width: '180px', height: '180px', borderRadius: '50%', background: conicGradientStr, margin: '0 auto 32px auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+           <div style={{ width: '180px', height: '180px', borderRadius: '50%', background: `conic-gradient(${conicStops.join(', ')})`, margin: '0 auto 32px auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <div style={{ width: '140px', height: '140px', borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
                  <span style={{ fontSize: '2rem', fontWeight: '800' }}>{overallUsed}%</span>
                  <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>of 50 GB</span>
