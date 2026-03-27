@@ -200,8 +200,8 @@ const Settings = () => {
                      </button>
                   </div>
                ) : (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px', animation: 'fadeIn 0.3s ease-out' }}>
-                     <div className="input-group" style={{ marginBottom: 0 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', animation: 'fadeIn 0.3s ease-out', alignItems: 'start' }}>
+                     <div className="input-group" style={{ marginBottom: 0, minWidth: 0 }}>
                         <label>Current Password</label>
                         <div style={{ position: 'relative' }}>
                           <input 
@@ -223,7 +223,7 @@ const Settings = () => {
                           </button>
                         </div>
                      </div>
-                     <div className="input-group" style={{ marginBottom: 0 }}>
+                     <div className="input-group" style={{ marginBottom: 0, minWidth: 0 }}>
                         <label>New Password</label>
                         <div style={{ position: 'relative' }}>
                           <input 
@@ -245,7 +245,7 @@ const Settings = () => {
                           </button>
                         </div>
                      </div>
-                     <div className="input-group" style={{ marginBottom: 0 }}>
+                     <div className="input-group" style={{ marginBottom: 0, minWidth: 0 }}>
                         <label>Confirm Password</label>
                         <div style={{ position: 'relative' }}>
                           <input 
