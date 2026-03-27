@@ -2,12 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff } from 'lucide-react';
+import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 
 const Home = () => {
-  const { currentUser, logout } = useAuth();
+  const { currentUser, logout, login, signup, loginWithGoogle } = useAuth();
   const navigate = useNavigate();
+
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountModalView, setAccountModalView] = useState('options'); // 'options', 'login', 'signup'
+  const [accountFormData, setAccountFormData] = useState({ email: '', password: '', fullName: '', confirmPassword: '' });
+  const [isAccountLoading, setIsAccountLoading] = useState(false);
+  const [showAccountPass, setShowAccountPass] = useState(false);
   
   const [profileOpen, setProfileOpen] = useState(false);
   const [userFiles, setUserFiles] = useState([]);
@@ -335,7 +341,7 @@ const Home = () => {
               <button className="btn-primary" style={{ background: 'transparent', border: '1px solid var(--border-color)', marginBottom: '12px', color: '#fff' }} onClick={() => navigate('/settings')}>
                 <SettingsIcon size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '8px' }}/> Manage Account Settings
               </button>
-              <button style={{ width: '100%', marginBottom: '12px', padding: '10px', background: 'transparent', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', transition: 'all 0.2s', fontSize: '1rem', fontWeight: '600' }} onMouseOver={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }} onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }} onClick={() => { setProfileOpen(false); alert("Redirecting to Google Multi-Auth Provider...")}}>
+              <button style={{ width: '100%', marginBottom: '12px', padding: '10px', background: 'transparent', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', transition: 'all 0.2s', fontSize: '1rem', fontWeight: '600' }} onMouseOver={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }} onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }} onClick={() => { setProfileOpen(false); setShowAccountModal(true); setAccountModalView('options'); }}>
                  <span style={{ fontSize: '1.4rem', lineHeight: '1' }}>+</span> Add Another Account
               </button>
               <button className="btn-primary" onClick={handleLogout} style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
@@ -552,6 +558,81 @@ const Home = () => {
             </div>
           </div>
         </div>
+
+      {/* Multi-Account Switcher Modal */}
+      {showAccountModal && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, animation: 'fadeIn 0.3s ease-out' }}>
+          <div className="glass-panel" style={{ width: '450px', padding: '40px', position: 'relative', background: 'rgba(15, 23, 42, 0.95)', border: '1px solid rgba(255,255,255,0.1)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)' }}>
+            <button onClick={() => setShowAccountModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={24} /></button>
+            
+            {accountModalView === 'options' && (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ background: 'rgba(59, 130, 246, 0.1)', width: '64px', height: '64px', borderRadius: '16px', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', color: 'var(--accent-primary)' }}>
+                   <Fingerprint size={32} />
+                </div>
+                <h2 style={{ fontSize: '1.8rem', fontWeight: '700', marginBottom: '12px' }}>Add Account</h2>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Choose your preferred authentication protocol to initiate a secure parallel session.</p>
+                
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                   <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }} onClick={() => { setIsAccountLoading(true); loginWithGoogle().then(() => setShowAccountModal(false)).catch(e => alert(e.message)).finally(() => setIsAccountLoading(false)); }}>
+                      <Globe size={18} /> Sign in with Google
+                   </button>
+                   <button className="btn-primary" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: '#fff' }} onClick={() => setAccountModalView('login')}>
+                      <Mail size={18} /> Continue with Email
+                   </button>
+                   <button className="btn-primary" style={{ background: 'transparent', border: '1px dashed var(--border-color)', color: 'var(--text-muted)' }} onClick={() => setAccountModalView('signup')}>
+                      <UserPlus size={18} /> Create New Account
+                   </button>
+                </div>
+              </div>
+            )}
+
+            {(accountModalView === 'login' || accountModalView === 'signup') && (
+              <div style={{ animation: 'slideInRight 0.3s ease-out' }}>
+                <button onClick={() => setAccountModalView('options')} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9rem' }}><ChevronLeft size={16}/> Back to protocols</button>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>{accountModalView === 'login' ? 'Secure Login' : 'Create Identity'}</h3>
+                
+                <form onSubmit={async (e) => {
+                   e.preventDefault();
+                   setIsAccountLoading(true);
+                   try {
+                       if (accountModalView === 'login') {
+                           await login(accountFormData.email, accountFormData.password);
+                       } else {
+                           if (accountFormData.password !== accountFormData.confirmPassword) throw new Error("Passwords mismatch.");
+                           await signup(accountFormData.email, accountFormData.password);
+                       }
+                       setShowAccountModal(false);
+                   } catch (err) { alert(err.message); } finally { setIsAccountLoading(false); }
+                }}>
+                   <div className="input-group">
+                      <label>Email Address</label>
+                      <input type="email" required className="input-field" value={accountFormData.email} onChange={e => setAccountFormData({...accountFormData, email: e.target.value})} placeholder="Ex: pilot@securenest.io" />
+                   </div>
+                   <div className="input-group">
+                      <label>Secret Password</label>
+                      <div style={{ position: 'relative' }}>
+                        <input type={showAccountPass ? "text" : "password"} required className="input-field" value={accountFormData.password} onChange={e => setAccountFormData({...accountFormData, password: e.target.value})} style={{ paddingRight: '44px' }} />
+                        <button type="button" onClick={() => setShowAccountPass(!showAccountPass)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                           {showAccountPass ? <EyeOff size={18}/> : <Eye size={18}/>}
+                        </button>
+                      </div>
+                   </div>
+                   {accountModalView === 'signup' && (
+                     <div className="input-group">
+                        <label>Confirm Entry Secret</label>
+                        <input type="password" required className="input-field" value={accountFormData.confirmPassword} onChange={e => setAccountFormData({...accountFormData, confirmPassword: e.target.value})} />
+                     </div>
+                   )}
+                   <button type="submit" className="btn-primary" disabled={isAccountLoading}>
+                      {isAccountLoading ? 'Authenticating...' : (accountModalView === 'login' ? 'Authorize Session' : 'Generate Vault Access')}
+                   </button>
+                </form>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       </main>
     </div>
