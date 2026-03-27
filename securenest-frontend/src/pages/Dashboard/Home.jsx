@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -271,19 +271,22 @@ const Home = () => {
     
     try {
         const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        const { data } = await axios.get(`${bUrl}/api/storage/download/${file._id}`);
         
-        if (data.success && data.fileLink) {
-           const response = await fetch(data.fileLink);
-           const rawBuffer = await response.arrayBuffer();
-           
-           const { decryptFileForDownload } = await import('../../utils/cryptoFunctions');
-           const decryptedBlob = await decryptFileForDownload(rawBuffer, vaultKey, file.iv, file.mimeType);
-           
-           const url = URL.createObjectURL(decryptedBlob);
-           setBlobCache(prev => ({ ...prev, [file._id]: url }));
-           setViewingFile({ meta: file, url });
-        }
+        // Use the new Proxy Retrieval Pipeline to bypass browser CORS (Telegram CDN restriction)
+        const response = await fetch(`${bUrl}/api/storage/proxy/${file._id}`);
+        if (!response.ok) throw new Error("Proxy retrieval failed.");
+        
+        const rawBuffer = await response.arrayBuffer();
+        
+        // Correctly parse the IV from MongoDB string format to ensure Web Crypto API gets a valid Uint8Array
+        const ivToUse = typeof file.iv === 'string' ? JSON.parse(file.iv) : file.iv;
+        
+        const { decryptFileForDownload } = await import('../../utils/cryptoFunctions');
+        const decryptedBlob = await decryptFileForDownload(rawBuffer, vaultKey, ivToUse, file.mimeType);
+        
+        const url = URL.createObjectURL(decryptedBlob);
+        setBlobCache(prev => ({ ...prev, [file._id]: url }));
+        setViewingFile({ meta: file, url });
     } catch (error) {
         console.error("Retrieval Error", error);
         alert("Failed to decrypt or retrieve file.");
@@ -301,11 +304,11 @@ const Home = () => {
          for (const file of userFiles) {
              if (file.mimeType.startsWith('image/') && !blobCache[file._id]) {
                  try {
-                     const { data } = await axios.get(`${bUrl}/api/storage/download/${file._id}`);
-                     if (data.success && data.fileLink) {
-                         const response = await fetch(data.fileLink);
+                     const response = await fetch(`${bUrl}/api/storage/proxy/${file._id}`);
+                     if (response.ok) {
                          const rawBuffer = await response.arrayBuffer();
-                         const decryptedBlob = await decryptFileForDownload(rawBuffer, vaultKey, file.iv, file.mimeType);
+                         const ivToUse = typeof file.iv === 'string' ? JSON.parse(file.iv) : file.iv;
+                         const decryptedBlob = await decryptFileForDownload(rawBuffer, vaultKey, ivToUse, file.mimeType);
                          const url = URL.createObjectURL(decryptedBlob);
                          setBlobCache(prev => ({ ...prev, [file._id]: url }));
                      }

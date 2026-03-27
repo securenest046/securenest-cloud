@@ -4,6 +4,7 @@ const multer = require('multer');
 const TelegramBot = require('node-telegram-bot-api');
 const FileMeta = require('../models/FileMeta');
 const User = require('../models/User');
+const axios = require('axios');
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
 
@@ -98,6 +99,32 @@ router.get('/download/:fileId', async (req, res) => {
     } catch (error) {
         console.error("Retrieval Error", error);
         res.status(500).json({ success: false, error: 'Retrieval failed from storage provider.' });
+    }
+});
+
+// Binary Proxy: Fetches encrypted bytes from Telegram to bypass browser CORS
+router.get('/proxy/:fileId', async (req, res) => {
+    try {
+        const fileRecord = await FileMeta.findById(req.params.fileId);
+        if (!fileRecord) return res.status(404).json({ success: false, error: 'File record missing' });
+        
+        // Use the file_id (which we stored in telegramMessageId field during upload)
+        const fileLink = await bot.getFileLink(fileRecord.telegramMessageId);
+        
+        // Fetch the raw encrypted buffer from Telegram
+        const response = await axios.get(fileLink, { responseType: 'arraybuffer' });
+        
+        // Stream back to frontend
+        res.set({
+            'Content-Type': 'application/octet-stream',
+            'Content-Length': response.data.byteLength,
+            'Access-Control-Expose-Headers': 'Content-Disposition'
+        });
+        
+        res.send(Buffer.from(response.data));
+    } catch (error) {
+        console.error("Proxy Retrieval Error:", error);
+        res.status(500).json({ success: false, error: 'Failed to stream vault data from Telegram bridge.' });
     }
 });
 
