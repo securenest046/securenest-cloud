@@ -5,7 +5,7 @@ import { Key, ArrowLeft, Save, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 
 const Settings = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, updateUserPassword, updateUserProfile } = useAuth();
   const navigate = useNavigate();
   
   const [vaultKey, setVaultKey] = useState("Fetching unique vault hardware key...");
@@ -105,15 +105,61 @@ const Settings = () => {
   };
 
   const handleChange = (e) => setFormData({...formData, [e.target.name]: e.target.value});
+  const [isSaving, setIsSaving] = useState(false);
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (formData.newPassword && formData.newPassword !== formData.confirmNewPassword) {
-        alert("New passwords do not match!");
-        return;
+    
+    if (formData.newPassword) {
+        if (formData.newPassword !== formData.confirmNewPassword) {
+            alert("New passwords do not match!");
+            return;
+        }
+        if (!formData.oldPassword) {
+            alert("Current password is required to change to a new one.");
+            return;
+        }
     }
-    // Implement API call to save settings
-    navigate('/home');
+
+    setIsSaving(true);
+    try {
+        const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
+        // 1. Handle Password Change (requires re-auth)
+        if (formData.newPassword) {
+            await updateUserPassword(formData.oldPassword, formData.newPassword);
+        }
+
+        // 2. Handle Profile Update (Display Name)
+        if (formData.fullName !== (currentUser.displayName || '')) {
+            await updateUserProfile({ displayName: formData.fullName });
+        }
+
+        // 3. Sync all changes to Backend
+        await axios.post(`${bUrl}/api/auth/sync`, {
+            userId: currentUser.uid,
+            email: currentUser.email,
+            fullName: formData.fullName
+        });
+
+        alert("All security parameters and identity metadata updated successfully.");
+        
+        // Reset sensitive fields
+        setFormData(prev => ({
+            ...prev,
+            oldPassword: '',
+            newPassword: '',
+            confirmNewPassword: ''
+        }));
+        
+        navigate('/home');
+    } catch (err) {
+        console.error("Settings Update Failed:", err);
+        const detail = err.response?.data?.detail || err.message;
+        alert(`Failed to update settings: ${detail}\n\nHINT: Re-authentication may have failed if your current password was incorrect.`);
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   return (
@@ -252,8 +298,8 @@ const Settings = () => {
             </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '24px', borderTop: '1px solid var(--border-color)' }}>
-               <button type="submit" className="btn-primary" style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 32px' }}>
-                  <Save size={18} /> Save Changes
+               <button type="submit" className="btn-primary" disabled={isSaving} style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 32px', opacity: isSaving ? 0.7 : 1, cursor: isSaving ? 'not-allowed' : 'pointer' }}>
+                  {isSaving ? 'Synchronizing Vault...' : <><Save size={18} /> Save Changes</>}
                </button>
             </div>
          </form>

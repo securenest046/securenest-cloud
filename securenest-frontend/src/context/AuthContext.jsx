@@ -8,7 +8,11 @@ import {
   onAuthStateChanged,
   sendPasswordResetEmail,
   GoogleAuthProvider,
-  signInWithPopup
+  signInWithPopup,
+  updatePassword,
+  updateProfile,
+  reauthenticateWithCredential,
+  EmailAuthProvider
 } from 'firebase/auth';
 
 const AuthContext = createContext();
@@ -44,6 +48,21 @@ export const AuthProvider = ({ children }) => {
     return signInWithPopup(auth, provider);
   };
 
+  const updateUserPassword = async (oldPassword, newPassword) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No authenticated user found.");
+    
+    const credential = EmailAuthProvider.credential(user.email, oldPassword);
+    await reauthenticateWithCredential(user, credential);
+    return updatePassword(user, newPassword);
+  };
+
+  const updateUserProfile = async (data) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No authenticated user found.");
+    return updateProfile(user, data);
+  };
+
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setCurrentUser(user);
@@ -59,7 +78,9 @@ export const AuthProvider = ({ children }) => {
     login,
     logout,
     resetPassword,
-    loginWithGoogle
+    loginWithGoogle,
+    updateUserPassword,
+    updateUserProfile
   };
 
   return (

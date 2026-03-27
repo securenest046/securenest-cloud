@@ -29,14 +29,17 @@ router.post('/sync', async (req, res) => {
                 userId,
                 email,
                 fullName: fullName || email.split('@')[0],
-                emailVerified: false, // Will be updated after post-login OTP success
+                emailVerified: false,
                 encryptionKey: generateEncryptionKey()
             });
             await user.save();
+        } else {
+            // Core Identity Metadata Synchronization
+            if (fullName && fullName !== user.fullName) user.fullName = fullName;
+            if (req.body.emailVerified !== undefined) user.emailVerified = req.body.emailVerified;
+            await user.save();
         }
         
-        // Note: The prompt requires the key to rotate every 30 days automatically.
-        // A cron job should handle that rotation securely, but for now we provide the active key.
         res.status(200).json({ success: true, user });
     } catch (error) {
         console.error("Auth Sync Error:", error);
