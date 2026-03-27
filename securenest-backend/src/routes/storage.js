@@ -3,6 +3,7 @@ const router = express.Router();
 const multer = require('multer');
 const TelegramBot = require('node-telegram-bot-api');
 const FileMeta = require('../models/FileMeta');
+const Folder = require('../models/Folder');
 const User = require('../models/User');
 
 const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: false });
@@ -82,9 +83,10 @@ router.get('/download/:fileId', async (req, res) => {
 router.get('/files/:userId', async (req, res) => {
     try {
         const files = await FileMeta.find({ userId: req.params.userId }).sort({ createdAt: -1 });
+        const folders = await Folder.find({ userId: req.params.userId }).sort({ createdAt: -1 });
         const user = await User.findOne({ userId: req.params.userId });
         
-        let vaultKey = "A8bC9dE0fH1iJ2kL3mN4oP5qR6sT7uV8wX9yZ012"; // Fallback demo key
+        let vaultKey = "A8bC9dE0fH1iJ2kL3mN4oP5qR6sT7uV8wX9yZ012"; 
         if (user && user.encryptionKey) {
             vaultKey = user.encryptionKey;
         }
@@ -92,12 +94,58 @@ router.get('/files/:userId', async (req, res) => {
         res.status(200).json({ 
             success: true, 
             files, 
+            folders,
             totalStorageUsed: user ? user.totalStorageUsed : 0,
             vaultKey 
         });
     } catch (error) {
         console.error("Fetch Files Error:", error);
         res.status(500).json({ success: false, error: 'Failed to synchronize vault metadata.', detail: error.message });
+    }
+});
+
+// Create new folder
+router.post('/folder', async (req, res) => {
+    try {
+        const { userId, name, parentId } = req.body;
+        const newFolder = new Folder({ userId, name, parentId });
+        await newFolder.save();
+        res.status(200).json({ success: true, folder: newFolder });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Folder creation failed.' });
+    }
+});
+
+// Rename file
+router.put('/file/rename/:fileId', async (req, res) => {
+    try {
+        const { newName } = req.body;
+        await FileMeta.findByIdAndUpdate(req.params.fileId, { originalName: newName });
+        res.status(200).json({ success: true, message: 'File renamed.' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Rename failed.' });
+    }
+});
+
+// Rename folder
+router.put('/folder/rename/:folderId', async (req, res) => {
+    try {
+        const { newName } = req.body;
+        await Folder.findByIdAndUpdate(req.params.folderId, { name: newName });
+        res.status(200).json({ success: true, message: 'Folder renamed.' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Rename failed.' });
+    }
+});
+
+// Delete folder
+router.delete('/folder/:folderId', async (req, res) => {
+    try {
+        await Folder.findByIdAndDelete(req.params.folderId);
+        // Note: In a full system, we might delete nested files, but for now we just delete the empty folder entry.
+        res.status(200).json({ success: true, message: 'Folder deleted.' });
+    } catch (error) {
+        res.status(500).json({ success: false, error: 'Folder deletion failed.' });
     }
 });
 
