@@ -1,6 +1,47 @@
 const express = require('express');
 const router = express.Router();
-const { sendEmail, otpStore } = require('../utils/mailService');
+const nodemailer = require('nodemailer');
+
+const otpStore = new Map();
+
+// Helper to send emails freely through standard SMTP
+const sendEmail = async (to, subject, htmlContent) => {
+    // These must be set in the backend .env file:
+    // SMTP_EMAIL=your.email@gmail.com
+    // SMTP_PASS=your16charapppassword
+    const user = process.env.SMTP_EMAIL;
+    const pass = process.env.SMTP_PASS;
+
+    if (!user || !pass) {
+        console.warn("SMTP_EMAIL or SMTP_PASS missing in .env. Skipping real email send.");
+        return false;
+    }
+
+    const transporter = nodemailer.createTransport({
+        host: 'smtp.gmail.com',
+        port: 465,
+        secure: true, 
+        auth: { 
+            user: user.trim(), 
+            pass: pass.trim() 
+        },
+        logger: true,
+        debug: true
+    });
+
+    try {
+        await transporter.sendMail({
+            from: `"SecureNest Security" <${user}>`,
+            to, 
+            subject, 
+            html: htmlContent
+        });
+        return true;
+    } catch (e) {
+        console.error("Nodemailer Send Error:", e);
+        return false;
+    }
+};
 
 // 1. Generate & Send OTP Code directly to User
 router.post('/send-otp', async (req, res) => {
