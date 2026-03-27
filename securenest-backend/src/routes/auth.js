@@ -42,7 +42,7 @@ router.post('/sync', async (req, res) => {
         res.status(200).json({ success: true, user });
     } catch (error) {
         console.error("Auth Sync Error:", error);
-        res.status(500).json({ success: false, error: 'Database synchronization failed.' });
+        res.status(500).json({ success: false, error: 'Database synchronization failed.', detail: error.message });
     }
 });
 

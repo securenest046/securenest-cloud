@@ -67,8 +67,8 @@ const Home = () => {
       }
     } catch (error) {
       console.error("Dashboard Sync Failed", error);
-      const msg = error.response ? `API Error: ${error.response.status}` : "Backend Unreachable (Check Connection)";
-      setVaultKey(`Error: ${msg}`);
+      const detail = error.response?.data?.detail || error.message;
+      setVaultKey(`Error: ${detail}`);
       
       // Fallback: Attempt to load files even if sync had issues
       try {

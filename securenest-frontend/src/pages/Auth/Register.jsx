@@ -61,7 +61,8 @@ const Register = () => {
       navigate('/home');
     } catch (error) {
       console.error(error);
-      alert(`Firebase Google Auth Failed: ${error.message}`);
+      const detail = error.response?.data?.detail || error.message;
+      alert(`Firebase Google Auth Failed: ${detail}`);
     } finally {
       setIsSending(false);
     }
@@ -91,7 +92,8 @@ const Register = () => {
        navigate('/home');
     } catch (err) {
        console.error(err);
-       alert(`Registration Failure: ${err.message}`);
+       const detail = err.response?.data?.detail || err.message;
+       alert(`Registration Failure: ${detail}`);
     } finally {
        setIsSending(false);
     }

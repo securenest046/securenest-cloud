@@ -97,7 +97,7 @@ router.get('/files/:userId', async (req, res) => {
         });
     } catch (error) {
         console.error("Fetch Files Error:", error);
-        res.status(500).json({ success: false, error: 'Failed to synchronize vault metadata.' });
+        res.status(500).json({ success: false, error: 'Failed to synchronize vault metadata.', detail: error.message });
     }
 });
 
