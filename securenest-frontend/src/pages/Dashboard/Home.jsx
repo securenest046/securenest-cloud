@@ -396,11 +396,8 @@ const Home = () => {
                           onMouseOut={(e) => { if(!isActive) { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; } e.currentTarget.querySelector('.acc-action-btn').style.opacity = 0; }}
                         >
                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                              <div style={{ position: 'relative' }}>
-                                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700', border: '1px solid rgba(255,255,255,0.1)' }}>
-                                   {acc.email[0].toUpperCase()}
-                                </div>
-                                <div className={`dot-indicator ${isActive ? 'dot-green' : 'dot-red'}`}></div>
+                              <div className={`avatar-status-glow ${isActive ? 'avatar-glow-green' : 'avatar-glow-red'}`} style={{ width: '34px', height: '34px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700', transition: 'all 0.3s' }}>
+                                 {acc.email[0].toUpperCase()}
                               </div>
                               <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '160px' }}>
                                  <span style={{ fontSize: '0.85rem', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isActive ? '#fff' : 'var(--text-muted)' }}>{acc.displayName}</span>

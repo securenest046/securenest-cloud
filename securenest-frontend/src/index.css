@@ -238,35 +238,26 @@ body {
 }
 
 /* Session Indicators */
-.dot-indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  position: absolute;
-  top: 6px;
-  left: 6px;
-}
-
-.dot-green {
-  background: var(--success);
+.avatar-glow-green {
+  border: 2px solid var(--success) !important;
   box-shadow: 0 0 8px var(--success);
-  animation: pulse-green 2s infinite;
+  animation: border-pulse-green 2s infinite;
 }
 
-.dot-red {
-  background: var(--danger);
+.avatar-glow-red {
+  border: 2px solid var(--danger) !important;
   box-shadow: 0 0 8px var(--danger);
-  animation: pulse-red 2s infinite;
+  animation: border-pulse-red 2s infinite;
 }
 
-@keyframes pulse-green {
-  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+@keyframes border-pulse-green {
+  0% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0.7); }
   70% { box-shadow: 0 0 0 6px rgba(16, 185, 129, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0px rgba(16, 185, 129, 0); }
 }
 
-@keyframes pulse-red {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+@keyframes border-pulse-red {
+  0% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0.7); }
   70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0px rgba(239, 68, 68, 0); }
 }
