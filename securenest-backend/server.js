@@ -3,6 +3,10 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const connectDB = require('./src/config/db');
 
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const mongoSanitize = require('express-mongo-sanitize');
+
 // Load env vars
 dotenv.config();
 
@@ -10,6 +14,18 @@ dotenv.config();
 connectDB();
 
 const app = express();
+
+// Security Middlewares
+app.use(helmet()); // Protects against common web vulnerabilities by setting HTTP headers
+app.use(mongoSanitize()); // Prevents NoSQL injection
+
+// Brute-force protection
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // Limit each IP to 100 requests per windowMs
+  message: 'Too many requests from this IP, please try again after 15 minutes'
+});
+app.use('/api/', limiter);
 
 // Middleware
 app.use(cors());

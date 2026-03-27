@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, X, PieChart, Trash2, Trash } from 'lucide-react';
+import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 
 const Home = () => {
@@ -35,34 +35,35 @@ const Home = () => {
   const [sortBy, setSortBy] = useState('date'); // 'date', 'name', 'size'
   const [viewMode, setViewMode] = useState('medium'); // 'large', 'medium', 'small', 'list'
 
-  const MAX_STORAGE = 50 * 1024 * 1024 * 1024; // 50 GB natively stored on Telegram Cloud via Relay
+  const MAX_STORAGE = 50 * 1024 * 1024 * 1024; 
+  const [userData, setUserData] = useState(null);
+  const [showVerifyModal, setShowVerifyModal] = useState(false);
+  const [verifyType, setVerifyType] = useState('email'); 
+  const [otpCode, setOtpCode] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
 
   const fetchDashboardData = async () => {
     if (!currentUser) return;
     try {
       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
       
-      // Attempt to retrieve vault metadata
-      const { data } = await axios.get(`${bUrl}/api/storage/files/${currentUser.uid}`);
+      // 1. Sync & Fetch User Account Status
+      const syncRes = await axios.post(`${bUrl}/api/auth/sync`, {
+          userId: currentUser.uid,
+          email: currentUser.email,
+          fullName: currentUser.displayName || 'SecureVault User'
+      });
       
+      if (syncRes.data.success) {
+          setUserData(syncRes.data.user);
+          setVaultKey(syncRes.data.user.encryptionKey);
+      }
+
+      // 2. Fetch Vault Files
+      const { data } = await axios.get(`${bUrl}/api/storage/files/${currentUser.uid}`);
       if (data.success) {
-         setUserFiles(data.files);
-         setTotalStorageUsed(data.totalStorageUsed);
-         
-         // If key is missing or fallback, force a re-sync to be safe
-         if (!data.vaultKey || data.vaultKey.startsWith("A8bC9dE0fH")) {
-             console.log("Triggering identity re-sync for vault key...");
-             const syncRes = await axios.post(`${bUrl}/api/auth/sync`, {
-                 userId: currentUser.uid,
-                 email: currentUser.email,
-                 fullName: currentUser.displayName || 'SecureNest User'
-             });
-             if (syncRes.data.success) {
-                 setVaultKey(syncRes.data.user.encryptionKey);
-             }
-         } else {
-             setVaultKey(data.vaultKey);
-         }
+          setUserFiles(data.files);
+          setTotalStorageUsed(data.totalStorageUsed);
       }
     } catch (error) {
       console.error("Dashboard Sync Failed", error);
@@ -85,6 +86,41 @@ const Home = () => {
   useEffect(() => {
     fetchDashboardData();
   }, [currentUser]);
+
+  const handleSendOtp = async (type) => {
+      setVerifyType(type);
+      setIsVerifying(true);
+      try {
+          const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+          const target = type === 'email' ? userData.email : userData.phone;
+          await axios.post(`${bUrl}/api/otp/send-otp`, { email: target });
+          setShowVerifyModal(true);
+      } catch (err) {
+          alert("Failed to send OTP. Check backend logs.");
+      } finally {
+          setIsVerifying(false);
+      }
+  };
+
+  const handleVerifyOtp = async () => {
+      setIsVerifying(true);
+      try {
+          const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+          const target = verifyType === 'email' ? userData.email : userData.phone;
+          const { data } = await axios.post(`${bUrl}/api/otp/verify-otp`, { email: target, otp: otpCode });
+          
+          if (data.success) {
+              setShowVerifyModal(false);
+              setOtpCode('');
+              alert(`${verifyType === 'email' ? 'Email' : 'Phone'} Verified Successfully!`);
+              fetchDashboardData();
+          }
+      } catch (err) {
+          alert("Invalid OTP Key.");
+      } finally {
+          setIsVerifying(false);
+      }
+  };
 
   const handleLogout = async () => {
     try {
@@ -371,6 +407,27 @@ const Home = () => {
                    <ChevronLeft size={20} />
                 </button>
              </div>
+          {userData && (!userData.emailVerified || !userData.phoneVerified) && (
+            <div style={{ background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.2)', borderRadius: '12px', padding: '16px 24px', marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', animation: 'fadeIn 0.5s' }}>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                  <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(245, 158, 11, 0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f59e0b' }}>
+                     <ShieldAlert size={20} />
+                  </div>
+                  <div>
+                     <h4 style={{ margin: 0, fontSize: '1rem', color: '#fff' }}>Identity Verification Pending</h4>
+                     <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Secure your vault by verifying your communication channels.</p>
+                  </div>
+               </div>
+               <div style={{ display: 'flex', gap: '12px' }}>
+                  {!userData.emailVerified && (
+                    <button onClick={() => handleSendOtp('email')} style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', color: 'var(--accent-primary)', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}>Verify Email</button>
+                  )}
+                  {!userData.phoneVerified && (
+                    <button onClick={() => handleSendOtp('phone')} style={{ padding: '8px 16px', borderRadius: '8px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.2)', color: 'var(--success)', fontSize: '0.85rem', fontWeight: '600', cursor: 'pointer' }}>Verify Phone</button>
+                  )}
+               </div>
+            </div>
+          )}
           </div>
           
           {userFiles.length === 0 ? (
@@ -403,9 +460,9 @@ const Home = () => {
                           <span style={{ fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '30vw' }}>{file.originalName}</span>
                        </div>
                        
-                       <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                          <div className="card-actions" style={{ display: 'flex', gap: '8px', opacity: 0, transition: 'opacity 0.2s' }}>
-                             <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); }} className="action-btn-small" style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '6px', color: 'var(--accent-primary)', cursor: 'pointer' }} title="Secure Download"><Download size={16} /></button>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
+                           <div className="card-actions" style={{ display: 'flex', gap: '8px', opacity: 0.3, transition: 'opacity 0.2s' }}>
+                              <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); }} className="action-btn-small" style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '6px', color: 'var(--accent-primary)', cursor: 'pointer' }} title="Secure Download"><Download size={16} /></button>
                              <button onClick={(e) => handleDelete(e, file._id)} className="action-btn-small" style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: '6px', padding: '6px', color: 'var(--danger)', cursor: 'pointer' }} title="Decommission File"><Trash2 size={16} /></button>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end' }}>
@@ -436,9 +493,9 @@ const Home = () => {
                          <h4 style={{ fontSize: viewMode === 'small' ? '0.85rem' : '1.05rem', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalName}</h4>
                          <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{(file.fileSize / 1024 / 1024).toFixed(2)} MB • {new Date(file.createdAt).toLocaleDateString()}</p>
                          
-                         {/* Action Overlay */}
-                         <div className="card-actions-overlay" style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', opacity: 0, transition: 'opacity 0.2s' }}>
-                            <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); }} style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', color: 'var(--accent-primary)', cursor: 'pointer' }} title="Secure Download"><Download size={14} /></button>
+                          {/* Action Overlay */}
+                          <div className="card-actions-overlay" style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', opacity: 0.3, transition: 'opacity 0.2s' }}>
+                             <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); }} style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', color: 'var(--accent-primary)', cursor: 'pointer' }} title="Secure Download"><Download size={14} /></button>
                             <button onClick={(e) => handleDelete(e, file._id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '8px', color: 'var(--danger)', cursor: 'pointer' }} title="Decommission File"><Trash2 size={14} /></button>
                          </div>
                      </div>
@@ -449,6 +506,33 @@ const Home = () => {
 
         {/* Right 25% Component - Telemetry Ring Data (Acts as Drawer on Mobile) */}
         {sidebarOpen && <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.5)', zIndex: 190 }} onClick={() => setSidebarOpen(false)} />}
+        
+        {/* OTP Verification Modal Overlay */}
+        {showVerifyModal && (
+          <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 2000, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+             <div className="glass-panel" style={{ width: '400px', padding: '40px', textAlign: 'center', position: 'relative' }}>
+                <button onClick={() => setShowVerifyModal(false)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}><X size={20}/></button>
+                <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(59, 130, 246, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)', margin: '0 auto 24px auto' }}>
+                   {verifyType === 'email' ? <Mail size={32}/> : <Smartphone size={32}/>}
+                </div>
+                <h2 style={{ marginBottom: '8px' }}>Verify {verifyType === 'email' ? 'Email' : 'Phone'}</h2>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>Enter the 6-digit cryptographic code sent to your {verifyType}.</p>
+                
+                <input 
+                  type="text" 
+                  maxLength="6"
+                  value={otpCode}
+                  onChange={(e) => setOtpCode(e.target.value.replace(/[^0-9]/g, ''))}
+                  placeholder="000000"
+                  style={{ width: '100%', padding: '16px', borderRadius: '12px', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: '#fff', fontSize: '1.5rem', textAlign: 'center', letterSpacing: '8px', marginBottom: '24px', outline: 'none' }}
+                />
+                
+                <button onClick={handleVerifyOtp} disabled={otpCode.length !== 6 || isVerifying} className="btn-primary" style={{ opacity: otpCode.length === 6 && !isVerifying ? 1 : 0.5 }}>
+                   {isVerifying ? 'Authenticating...' : 'Verify Identity'}
+                </button>
+             </div>
+          </div>
+        )}
         
         <div className={`glass-panel dashboard-right ${sidebarOpen ? 'sidebar-open' : ''}`} style={{ flex: '0 0 calc(25% - 20px)', padding: '36px', display: 'flex', flexDirection: 'column', alignSelf: 'flex-start', position: 'sticky', top: '120px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '32px' }}>

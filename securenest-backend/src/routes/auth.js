@@ -29,7 +29,9 @@ router.post('/sync', async (req, res) => {
                 userId,
                 email,
                 fullName: fullName || email.split('@')[0],
-                phone: phone || '',
+                phone: phone || 'N/A', // Now strictly passed from registration
+                emailVerified: false, // Will be updated after post-login OTP success
+                phoneVerified: false,
                 encryptionKey: generateEncryptionKey()
             });
             await user.save();

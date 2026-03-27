@@ -44,30 +44,8 @@ const Register = () => {
 
   const [isSending, setIsSending] = useState(false);
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
-    const allMet = Object.values(pwdCriteria).every(Boolean);
-    if (!allMet) return;
-    
-    setIsSending(true);
-    try {
-       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-       const { data } = await axios.post(`${bUrl}/api/otp/send-otp`, { email: formData.email });
-       if (data.success) {
-           navigate('/otp-verify', { state: { email: formData.email, phone: formData.phone, password: formData.password, fullName: formData.fullName }});
-       } else {
-           alert("Failed to send OTP: " + data.message);
-       }
-    } catch (err) {
-       console.error(err);
-       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-       alert(`Sync Error: Could not reach backend at ${bUrl}\n\nDetail: ${err.message}`);
-    } finally {
-       setIsSending(false);
-    }
-  };
-
   const handleGoogleSignIn = async () => {
+    setIsSending(true);
     try {
       const userCredentials = await loginWithGoogle();
 
@@ -76,13 +54,46 @@ const Register = () => {
       await axios.post(`${bUrl}/api/auth/sync`, {
           userId: userCredentials.user.uid,
           email: userCredentials.user.email,
-          fullName: userCredentials.user.displayName || 'SecureNest User'
+          fullName: userCredentials.user.displayName || 'SecureNest User',
+          phone: userCredentials.user.phoneNumber || 'Google Verified'
       });
 
       navigate('/home');
     } catch (error) {
       console.error(error);
-      alert(`Firebase Auth Error: ${error.message}\n\nHint: Verify your domain is authorized in Firebase Console.`);
+      alert(`Firebase Google Auth Failed: ${error.message}`);
+    } finally {
+      setIsSending(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    const allMet = Object.values(pwdCriteria).every(Boolean);
+    if (!allMet) return;
+    if (!formData.phone) return alert("Phone number is required for SecureVault identity.");
+    
+    setIsSending(true);
+    try {
+       // 1. Firebase Auth Creation
+       const userCredentials = await signup(formData.email, formData.password);
+       
+       // 2. Immediate Backend Sync (Post-Login Entry Mode)
+       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+       await axios.post(`${bUrl}/api/auth/sync`, {
+           userId: userCredentials.user.uid,
+           email: formData.email,
+           fullName: formData.fullName,
+           phone: formData.phone
+       });
+       
+       // 3. Direct Entry
+       navigate('/home');
+    } catch (err) {
+       console.error(err);
+       alert(`Registration Failure: ${err.message}`);
+    } finally {
+       setIsSending(false);
     }
   };
 
