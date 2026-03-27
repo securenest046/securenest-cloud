@@ -152,4 +152,20 @@ router.delete('/:fileId', async (req, res) => {
     }
 });
 
+// Rename file or folder
+router.patch('/rename/:fileId', async (req, res) => {
+    try {
+        const { newName } = req.body;
+        if (!newName) return res.status(400).json({ success: false, message: 'New name is required.' });
+
+        const file = await FileMeta.findByIdAndUpdate(req.params.fileId, { originalName: newName }, { new: true });
+        if (!file) return res.status(404).json({ success: false, message: 'Identity pointer not found.' });
+
+        res.status(200).json({ success: true, file });
+    } catch (error) {
+        console.error("Rename Error:", error);
+        res.status(500).json({ success: false, error: 'Failed to rename vault identity.' });
+    }
+});
+
 module.exports = router;

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -55,6 +55,9 @@ const Home = () => {
   };
 
   const [activeMenu, setActiveMenu] = useState(null);
+  const [renamingId, setRenamingId] = useState(null);
+  const [renameValue, setRenameValue] = useState("");
+  const [infoFile, setInfoFile] = useState(null);
   const [viewingFile, setViewingFile] = useState(null);
   const [blobCache, setBlobCache] = useState({});
 
@@ -137,6 +140,35 @@ const Home = () => {
   const handleActionClick = (e, fileId) => {
     e.stopPropagation();
     setActiveMenu(activeMenu === fileId ? null : fileId);
+  };
+
+  const handleRenameToggle = (e, file) => {
+    e.stopPropagation();
+    setRenamingId(file._id);
+    setRenameValue(file.originalName);
+    setActiveMenu(null);
+  };
+
+  const handleRenameSubmit = async (e, fileId) => {
+    if (e.key && e.key !== 'Enter') return;
+    e.stopPropagation();
+    if (!renameValue.trim()) return setRenamingId(null);
+    try {
+      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      const { data } = await axios.patch(`${bUrl}/api/storage/rename/${fileId}`, { newName: renameValue });
+      if (data.success) {
+        setUserFiles(prev => prev.map(f => f._id === fileId ? { ...f, originalName: renameValue } : f));
+        setRenamingId(null);
+      }
+    } catch (err) {
+      alert("Rename failed.");
+    }
+  };
+
+  const showInfo = (e, file) => {
+    e.stopPropagation();
+    setInfoFile(file);
+    setActiveMenu(null);
   };
 
   const handleCreateFolder = async () => {
@@ -406,7 +438,7 @@ const Home = () => {
                 </div>
                 <div style={{ background: 'rgba(0,0,0,0.5)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                 <div style={{ fontFamily: 'monospace', color: 'var(--success)', fontSize: '0.85rem', wordBreak: 'break-all', letterSpacing: showVaultKey ? '1px' : '4px', textAlign: 'center', flex: 1 }}>
-                  {showVaultKey ? vaultKey : '••••••••••••••••••••'}
+                  {showVaultKey ? vaultKey : 'Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢'}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button 
@@ -600,7 +632,7 @@ const Home = () => {
               {viewMode === 'list' ? (
                  <div className="file-grid-adaptive" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {sortedFiles.map(file => (
-                         <div key={file._id} onClick={() => handleFileClick(file)} className="file-card-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: '12px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap', position: 'relative' }} onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 1); }} onMouseOut={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 0); }}>
+                         <div key={file._id} onClick={() => handleFileClick(file)} className="file-card-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: '12px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap', position: 'relative' }} onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 1); }} onMouseOut={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; if (activeMenu !== file._id) e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 0); }}>
                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 auto', minWidth: '150px' }}>
                               <div style={{ width: '30px', height: '30px', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: file.isFolder ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)' }}>
                                  {file.isFolder ? (
@@ -615,13 +647,35 @@ const Home = () => {
                                     <File size={18} color="#3b82f6" />
                                  )}
                               </div>
-                              <span style={{ fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '30vw' }}>{file.originalName}</span>
+                              {renamingId === file._id ? (
+                                 <input 
+                                   autoFocus 
+                                   className="input-field" 
+                                   style={{ padding: '4px 12px', fontSize: '0.9rem', height: '30px', border: '1px solid var(--accent-primary)', background: 'rgba(59, 130, 246, 0.1)' }} 
+                                   value={renameValue} 
+                                   onChange={e => setRenameValue(e.target.value)} 
+                                   onKeyDown={(e) => handleRenameSubmit(e, file._id)} 
+                                   onBlur={() => setRenamingId(null)}
+                                   onClick={e => e.stopPropagation()}
+                                 />
+                              ) : (
+                                 <span style={{ fontWeight: '500', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '30vw' }}>{file.originalName}</span>
+                              )}
                            </div>
                            
                             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                               <div className="card-actions" style={{ display: 'flex', gap: '8px', opacity: 0.3, transition: 'opacity 0.2s' }}>
-                                  {!file.isFolder && <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); }} className="action-btn-small" style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '6px', color: 'var(--accent-primary)', cursor: 'pointer' }} title="Secure Download"><Download size={16} /></button>}
-                                 <button onClick={(e) => handleDelete(e, file._id)} className="action-btn-small" style={{ background: 'rgba(239,68,68,0.1)', border: 'none', borderRadius: '6px', padding: '6px', color: 'var(--danger)', cursor: 'pointer' }} title="Decommission File"><Trash2 size={16} /></button>
+                               <div className="card-actions" style={{ position: 'relative', display: 'flex', gap: '8px', opacity: activeMenu === file._id ? 1 : 0, transition: 'opacity 0.2s' }}>
+                                   <button onClick={(e) => handleActionClick(e, file._id)} className="action-btn-small" style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '6px', color: 'var(--text-muted)', cursor: 'pointer' }} title="Actions"><MoreVertical size={16} /></button>
+                                   
+                                   {activeMenu === file._id && (
+                                      <div className="glass-panel" style={{ position: 'absolute', top: '100%', right: 0, width: '180px', background: 'rgba(15, 23, 42, 0.98)', border: '1px solid var(--border-color)', borderRadius: '12px', zIndex: 1000, padding: '8px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', marginTop: '8px', animation: 'fadeIn 0.2s ease-out' }}>
+                                         {!file.isFolder && <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); setActiveMenu(null); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', fontSize: '0.9rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(59,130,246,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}><Download size={14} color="#3b82f6" /> Download</button>}
+                                         <button onClick={(e) => handleRenameToggle(e, file)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', fontSize: '0.9rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(59,130,246,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}><Edit2 size={14} color="#f59e0b" /> Rename</button>
+                                         <button onClick={(e) => showInfo(e, file)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', fontSize: '0.9rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(59,130,246,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}><Info size={14} color="#34d399" /> Info</button>
+                                         <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 0' }}></div>
+                                         <button onClick={(e) => handleDelete(e, file._id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '8px', fontSize: '0.9rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(239,68,68,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}><Trash2 size={14} /> Delete</button>
+                                      </div>
+                                   )}
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end' }}>
                                  <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{file.isFolder ? '--' : `${(file.fileSize / 1024 / 1024).toFixed(2)} MB`}</span>
@@ -634,7 +688,7 @@ const Home = () => {
                 ) : (
                    <div className="file-grid-adaptive" style={{ display: 'grid', gridTemplateColumns: viewMode === 'large' ? 'repeat(auto-fill, minmax(320px, 1fr))' : viewMode === 'small' ? 'repeat(auto-fill, minmax(130px, 1fr))' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
                       {sortedFiles.map(file => (
-                          <div key={file._id} onClick={() => handleFileClick(file)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: viewMode === 'small' ? '12px' : '20px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s', overflow: 'hidden' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 1; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 0; }}>
+                          <div key={file._id} onClick={() => handleFileClick(file)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: viewMode === 'small' ? '12px' : '20px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s', overflow: 'visible' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 1; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; if (activeMenu !== file._id) e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 0; }}>
                               
                               {/* Card Content */}
                               <div style={{ width: viewMode === 'small' ? '36px' : '64px', height: viewMode === 'small' ? '36px' : '64px', borderRadius: '12px', background: file.isFolder ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', color: file.isFolder ? '#f59e0b' : 'var(--accent-primary)' }}>
@@ -650,14 +704,38 @@ const Home = () => {
                                     <File size={viewMode === 'small' ? 20 : 32} />
                                  )}
                               </div>
-                              <h4 style={{ fontSize: viewMode === 'small' ? '0.85rem' : '1.05rem', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalName}</h4>
-                              <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{file.isFolder ? 'Directory' : `${(file.fileSize / 1024 / 1024).toFixed(2)} MB`} • {new Date(file.createdAt).toLocaleDateString()}</p>
+                              {renamingId === file._id ? (
+                                 <input 
+                                   autoFocus 
+                                   className="input-field" 
+                                   style={{ padding: '4px 8px', fontSize: '0.85rem', width: '100%', background: 'rgba(59, 130, 246, 0.1)', border: '1px solid var(--accent-primary)' }} 
+                                   value={renameValue} 
+                                   onChange={e => setRenameValue(e.target.value)} 
+                                   onKeyDown={(e) => handleRenameSubmit(e, file._id)} 
+                                   onBlur={() => setRenamingId(null)}
+                                   onClick={e => e.stopPropagation()}
+                                 />
+                              ) : (
+                                 <>
+                                   <h4 style={{ fontSize: viewMode === 'small' ? '0.85rem' : '1.05rem', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalName}</h4>
+                                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{file.isFolder ? 'Directory' : `${(file.fileSize / 1024 / 1024).toFixed(2)} MB`} Ã¢â‚¬Â¢ {new Date(file.createdAt).toLocaleDateString()}</p>
+                                 </>
+                              )}
                               
                                {/* Action Overlay */}
-                               <div className="card-actions-overlay" style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', opacity: 0.3, transition: 'opacity 0.2s' }}>
-                                  {!file.isFolder && <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); }} style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', color: 'var(--accent-primary)', cursor: 'pointer' }} title="Secure Download"><Download size={14} /></button>}
-                                 <button onClick={(e) => handleDelete(e, file._id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: '8px', padding: '8px', color: 'var(--danger)', cursor: 'pointer' }} title="Decommission File"><Trash2 size={14} /></button>
-                              </div>
+                               <div className="card-actions-overlay" style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', opacity: activeMenu === file._id ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}>
+                                  <button onClick={(e) => handleActionClick(e, file._id)} style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', color: 'var(--text-muted)', cursor: 'pointer' }} title="Actions"><MoreVertical size={14} /></button>
+                                  
+                                  {activeMenu === file._id && (
+                                     <div className="glass-panel" style={{ position: 'absolute', top: '100%', right: 0, width: '160px', background: 'rgba(15, 23, 42, 0.98)', border: '1px solid var(--border-color)', borderRadius: '12px', zIndex: 1000, padding: '6px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', marginTop: '8px', animation: 'fadeIn 0.2s ease-out' }}>
+                                        {!file.isFolder && <button onClick={(e) => { e.stopPropagation(); handleFileClick(file); setActiveMenu(null); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(59,130,246,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}><Download size={12} color="#3b82f6" /> Download</button>}
+                                        <button onClick={(e) => handleRenameToggle(e, file)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(59,130,246,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}><Edit2 size={12} color="#f59e0b" /> Rename</button>
+                                        <button onClick={(e) => showInfo(e, file)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(59,130,246,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}><Info size={12} color="#34d399" /> Info</button>
+                                        <div style={{ height: '1px', background: 'var(--border-color)', margin: '4px 0' }}></div>
+                                        <button onClick={(e) => handleDelete(e, file._id)} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '8px', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', borderRadius: '6px', fontSize: '0.85rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(239,68,68,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}><Trash2 size={12} /> Delete</button>
+                                     </div>
+                                  )}
+                               </div>
                           </div>
                       ))}
                    </div>
@@ -802,8 +880,183 @@ const Home = () => {
         </div>
       )}
 
+
+      {/* Context Action Overlay: Info Modal */}
+      {infoFile && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.3s ease-out' }} onClick={() => setInfoFile(null)}>
+           <div className="glass-panel" style={{ width: '450px', padding: '32px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
+              <button onClick={() => setInfoFile(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', padding: '8px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: infoFile.isFolder ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: infoFile.isFolder ? '#f59e0b' : '#3b82f6' }}>
+                    {infoFile.isFolder ? <Folder size={24} /> : <File size={24} />}
+                 </div>
+                 <div>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>Identity Metadata</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Verified Vault Record</p>
+                 </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Original Name</p>
+                    <p style={{ fontWeight: '500', wordBreak: 'break-all' }}>{infoFile.originalName}</p>
+                 </div>
+                 
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Registry Type</p>
+                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? 'Directory' : infoFile.mimeType.split('/')[1]?.toUpperCase() || 'DATA'}</p>
+                    </div>
+                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Storage Weight</p>
+                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? '--' : `${(infoFile.fileSize / 1024 / 1024).toFixed(3)} MB`}</p>
+                    </div>
+                 </div>
+
+                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Vault Location</p>
+                    <p style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       <Globe size={14} color="#3b82f6" />
+                       Root {folderStack.map(f => ` / ${f.originalName}`).join('')} {currentFolder ? ` / ${currentFolder.originalName}` : ''}
+                    </p>
+                 </div>
+
+                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Creation Timestamp</p>
+                    <p style={{ fontWeight: '500' }}>{new Date(infoFile.createdAt).toLocaleString()}</p>
+                 </div>
+
+                 <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <ShieldAlert size={16} color="#34d399" />
+                    <span style={{ fontSize: '0.85rem', color: '#34d399' }}>Secured with AES-GCM 256-bit Hardware-Key Encryption</span>
+                 </div>
+              </div>
+
+              <button onClick={() => setInfoFile(null)} className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '12px' }}>Close Inspector</button>
+           </div>
+        </div>
+      )}
+
+      {/* Context Action Overlay: Info Modal */}
+      {infoFile && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.3s ease-out' }} onClick={() => setInfoFile(null)}>
+           <div className="glass-panel" style={{ width: '450px', padding: '32px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
+              <button onClick={() => setInfoFile(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', padding: '8px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: infoFile.isFolder ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: infoFile.isFolder ? '#f59e0b' : '#3b82f6' }}>
+                    {infoFile.isFolder ? <Folder size={24} /> : <File size={24} />}
+                 </div>
+                 <div>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>Identity Metadata</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Verified Vault Record</p>
+                 </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Original Name</p>
+                    <p style={{ fontWeight: '500', wordBreak: 'break-all' }}>{infoFile.originalName}</p>
+                 </div>
+                 
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Registry Type</p>
+                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? 'Directory' : infoFile.mimeType.split('/')[1]?.toUpperCase() || 'DATA'}</p>
+                    </div>
+                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Storage Weight</p>
+                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? '--' : `${(infoFile.fileSize / 1024 / 1024).toFixed(3)} MB`}</p>
+                    </div>
+                 </div>
+
+                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Vault Location</p>
+                    <p style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       <Globe size={14} color="#3b82f6" />
+                       Root {folderStack.map(f => ` / ${f.originalName}`).join('')} {currentFolder ? ` / ${currentFolder.originalName}` : ''}
+                    </p>
+                 </div>
+
+                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Creation Timestamp</p>
+                    <p style={{ fontWeight: '500' }}>{new Date(infoFile.createdAt).toLocaleString()}</p>
+                 </div>
+
+                 <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <ShieldAlert size={16} color="#34d399" />
+                    <span style={{ fontSize: '0.85rem', color: '#34d399' }}>Secured with AES-GCM 256-bit Hardware-Key Encryption</span>
+                 </div>
+              </div>
+
+              <button onClick={() => setInfoFile(null)} className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '12px' }}>Close Inspector</button>
+           </div>
+        </div>
+      )}
+      {/* Context Action Overlay: Info Modal */}
+      {infoFile && (
+        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.3s ease-out' }} onClick={() => setInfoFile(null)}>
+           <div className="glass-panel" style={{ width: '450px', padding: '32px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
+              <button onClick={() => setInfoFile(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', padding: '8px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
+                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: infoFile.isFolder ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: infoFile.isFolder ? '#f59e0b' : '#3b82f6' }}>
+                    {infoFile.isFolder ? <Folder size={24} /> : <File size={24} />}
+                 </div>
+                 <div>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>Identity Metadata</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Verified Vault Record</p>
+                 </div>
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Original Name</p>
+                    <p style={{ fontWeight: '500', wordBreak: 'break-all' }}>{infoFile.originalName}</p>
+                 </div>
+                 
+                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Registry Type</p>
+                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? 'Directory' : infoFile.mimeType.split('/')[1]?.toUpperCase() || 'DATA'}</p>
+                    </div>
+                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Storage Weight</p>
+                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? '--' : `${(infoFile.fileSize / 1024 / 1024).toFixed(3)} MB`}</p>
+                    </div>
+                 </div>
+
+                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Vault Location</p>
+                    <p style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                       <Globe size={14} color="#3b82f6" />
+                       Root {folderStack.map(f => ` / ${f.originalName}`).join('')} {currentFolder ? ` / ${currentFolder.originalName}` : ''}
+                    </p>
+                 </div>
+
+                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Creation Timestamp</p>
+                    <p style={{ fontWeight: '500' }}>{new Date(infoFile.createdAt).toLocaleString()}</p>
+                 </div>
+
+                 <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <ShieldAlert size={16} color="#34d399" />
+                    <span style={{ fontSize: '0.85rem', color: '#34d399' }}>Secured with AES-GCM 256-bit Hardware-Key Encryption</span>
+                 </div>
+              </div>
+
+              <button onClick={() => setInfoFile(null)} className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '12px' }}>Close Inspector</button>
+           </div>
+        </div>
+      )}
+
       </main>
     </div>
   );
 };
 export default Home;
+
+
+
+
