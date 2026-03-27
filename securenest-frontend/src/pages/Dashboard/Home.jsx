@@ -14,6 +14,7 @@ const Home = () => {
   const [accountFormData, setAccountFormData] = useState({ email: '', password: '', fullName: '', confirmPassword: '' });
   const [isAccountLoading, setIsAccountLoading] = useState(false);
   const [showAccountPass, setShowAccountPass] = useState(false);
+  const [isEmailLocked, setIsEmailLocked] = useState(false);
   
   const [profileOpen, setProfileOpen] = useState(false);
   const [userFiles, setUserFiles] = useState([]);
@@ -374,37 +375,50 @@ const Home = () => {
                 <div style={{ marginBottom: '20px' }}>
                   <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', marginBottom: '12px' }}>Recent Identities</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    {recentAccounts.filter(acc => acc.uid !== currentUser?.uid).map(acc => (
-                      <div key={acc.uid} className="recent-account-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: '1px solid transparent', cursor: 'pointer', transition: 'all 0.2s', position: 'relative' }} 
-                        onClick={() => { 
-                          logout().then(() => {
-                             setAccountFormData(prev => ({ ...prev, email: acc.email }));
-                             setShowAccountModal(true);
-                             setAccountModalView('login');
-                             setProfileOpen(false);
-                          });
-                        }}
-                        onMouseOver={(e) => { e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)'; e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)'; e.currentTarget.querySelectorAll('.remove-acc-btn').forEach(btn => btn.style.opacity = 1); }}
-                        onMouseOut={(e) => { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; e.currentTarget.querySelectorAll('.remove-acc-btn').forEach(btn => btn.style.opacity = 0); }}
-                      >
-                         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                            <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700', border: '1px solid rgba(255,255,255,0.1)' }}>
-                               {acc.email[0].toUpperCase()}
-                            </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '160px' }}>
-                               <span style={{ fontSize: '0.85rem', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{acc.displayName}</span>
-                               <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{acc.email}</span>
-                            </div>
-                         </div>
-                         <button className="remove-acc-btn" 
-                           onClick={(e) => { e.stopPropagation(); handleRemoveRecent(e, acc.uid); }}
-                           style={{ opacity: 0, transition: 'opacity 0.2s', background: 'transparent', border: 'none', color: 'var(--danger)', cursor: 'pointer', padding: '4px' }}
-                           title="Prune Identity"
-                         >
-                            <X size={14} />
-                         </button>
-                      </div>
-                    ))}
+                    {recentAccounts.map(acc => {
+                      const isActive = acc.uid === currentUser?.uid;
+                      return (
+                        <div key={acc.uid} className="recent-account-item" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: '10px', border: isActive ? '1px solid rgba(16, 185, 129, 0.2)' : '1px solid transparent', cursor: isActive ? 'default' : 'pointer', transition: 'all 0.2s', position: 'relative' }} 
+                          onClick={() => { 
+                            if (isActive) return;
+                            logout().then(() => {
+                               setAccountFormData(prev => ({ ...prev, email: acc.email }));
+                               setIsEmailLocked(true);
+                               setShowAccountModal(true);
+                               setAccountModalView('login');
+                               setProfileOpen(false);
+                            });
+                          }}
+                          onMouseOver={(e) => { if(!isActive) { e.currentTarget.style.borderColor = 'rgba(59, 130, 246, 0.3)'; e.currentTarget.style.background = 'rgba(59, 130, 246, 0.05)'; } e.currentTarget.querySelector('.acc-action-btn').style.opacity = 1; }}
+                          onMouseOut={(e) => { if(!isActive) { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'rgba(255,255,255,0.03)'; } e.currentTarget.querySelector('.acc-action-btn').style.opacity = 0; }}
+                        >
+                           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                              <div style={{ position: 'relative' }}>
+                                <div style={{ width: '30px', height: '30px', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700', border: '1px solid rgba(255,255,255,0.1)' }}>
+                                   {acc.email[0].toUpperCase()}
+                                </div>
+                                <div className={`dot-indicator ${isActive ? 'dot-green' : 'dot-red'}`}></div>
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '160px' }}>
+                                 <span style={{ fontSize: '0.85rem', fontWeight: '600', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: isActive ? '#fff' : 'var(--text-muted)' }}>{acc.displayName}</span>
+                                 <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{acc.email}</span>
+                              </div>
+                           </div>
+                           
+                           <button className="acc-action-btn" 
+                             onClick={(e) => { 
+                               e.stopPropagation(); 
+                               if (isActive) handleLogout();
+                               else handleRemoveRecent(e, acc.uid); 
+                             }}
+                             style={{ opacity: 0, transition: 'opacity 0.2s', background: 'transparent', border: 'none', color: isActive ? 'var(--danger)' : 'var(--text-muted)', cursor: 'pointer', padding: '4px' }}
+                             title={isActive ? "Sign Out" : "Remove Profile"}
+                           >
+                              {isActive ? <LogOut size={14} /> : <X size={14} />}
+                           </button>
+                        </div>
+                      );
+                    })}
                   </div>
                   <div style={{ height: '1px', background: 'var(--border-color)', margin: '20px 0 0 0' }}></div>
                 </div>
@@ -413,7 +427,7 @@ const Home = () => {
               <button className="btn-primary" style={{ background: 'transparent', border: '1px solid var(--border-color)', marginBottom: '12px', color: '#fff' }} onClick={() => navigate('/settings')}>
                 <SettingsIcon size={16} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '8px' }}/> Manage Account Settings
               </button>
-              <button style={{ width: '100%', marginBottom: '12px', padding: '10px', background: 'transparent', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', transition: 'all 0.2s', fontSize: '1rem', fontWeight: '600' }} onMouseOver={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }} onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }} onClick={() => { setProfileOpen(false); setShowAccountModal(true); setAccountModalView('options'); }}>
+              <button style={{ width: '100%', marginBottom: '12px', padding: '10px', background: 'transparent', border: '1px dashed var(--border-color)', borderRadius: '12px', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', cursor: 'pointer', transition: 'all 0.2s', fontSize: '1rem', fontWeight: '600' }} onMouseOver={(e) => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.borderColor = 'rgba(255,255,255,0.3)'; }} onMouseOut={(e) => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.borderColor = 'var(--border-color)'; }} onClick={() => { setProfileOpen(false); setIsEmailLocked(false); setShowAccountModal(true); setAccountModalView('options'); }}>
                  <span style={{ fontSize: '1.4rem', lineHeight: '1' }}>+</span> Add Another Account
               </button>
               <button className="btn-primary" onClick={handleLogout} style={{ background: 'rgba(239, 68, 68, 0.1)', color: 'var(--danger)', border: '1px solid rgba(239, 68, 68, 0.2)' }}>
@@ -679,7 +693,7 @@ const Home = () => {
                 }}>
                    <div className="input-group">
                       <label>Email Address</label>
-                      <input type="email" required className="input-field" value={accountFormData.email} onChange={e => setAccountFormData({...accountFormData, email: e.target.value})} placeholder="Ex: pilot@securenest.io" />
+                      <input type="email" required className="input-field" value={accountFormData.email} onChange={e => setAccountFormData({...accountFormData, email: e.target.value})} placeholder="Ex: pilot@securenest.io" disabled={isEmailLocked} style={{ background: isEmailLocked ? 'rgba(255,255,255,0.03)' : undefined, cursor: isEmailLocked ? 'not-allowed' : 'text', opacity: isEmailLocked ? 0.7 : 1 }} />
                    </div>
                    <div className="input-group">
                       <label>Secret Password</label>

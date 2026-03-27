@@ -9,14 +9,37 @@ const Settings = () => {
   const navigate = useNavigate();
   
   const [vaultKey, setVaultKey] = useState("Fetching unique vault hardware key...");
+  const [userData, setUserData] = useState(null);
+  const [showVaultKey, setShowVaultKey] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const [formData, setFormData] = useState({
+    fullName: '',
+    email: '',
+    oldPassword: '',
+    newPassword: '',
+    confirmNewPassword: ''
+  });
+
+  const [showPasswords, setShowPasswords] = useState({
+      old: false,
+      new: false,
+      confirm: false
+  });
+
+  const [emailVerification, setEmailVerification] = useState({
+      state: 'idle', // 'idle', 'pending', 'verified'
+      otp: '',
+      loading: false
+  });
 
   useEffect(() => {
     const fetchData = async () => {
         if (!currentUser) return;
         try {
             const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-            
-            // 1. Fetch User Data
             const syncRes = await axios.post(`${bUrl}/api/auth/sync`, {
                 userId: currentUser.uid,
                 email: currentUser.email
@@ -29,6 +52,9 @@ const Settings = () => {
                     fullName: syncRes.data.user.fullName || prev.fullName,
                     email: syncRes.data.user.email || prev.email
                 }));
+                if (syncRes.data.user.emailVerified) {
+                    setEmailVerification(prev => ({ ...prev, state: 'verified' }));
+                }
             }
         } catch (err) {
             console.error("Settings Sync Error", err);
@@ -38,113 +64,72 @@ const Settings = () => {
     fetchData();
   }, [currentUser]);
 
-  const [copied, setCopied] = useState(false);
   const handleCopy = () => {
       navigator.clipboard.writeText(vaultKey);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
   };
 
-  const [userData, setUserData] = useState(null);
-  const [showVaultKey, setShowVaultKey] = useState(false);
-  const [showPasswords, setShowPasswords] = useState({
-    old: false,
-    new: false,
-    confirm: false
-  });
-
-  const [formData, setFormData] = useState({
-    fullName: currentUser?.displayName || '',
-    email: currentUser?.email || '',
-    oldPassword: '',
-    newPassword: '',
-    confirmNewPassword: ''
-  });
-
-  // Email Verification Logic
-  const [emailVerification, setEmailVerification] = useState({ state: 'idle', otp: '', loading: false });
+  const handleChange = (e) => {
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
 
   const handleVerifyEmailReq = async () => {
-      setEmailVerification(prev => ({ ...prev, loading: true }));
+      setEmailVerification({...emailVerification, loading: true});
       try {
           const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-          await axios.post(`${bUrl}/api/otp/send-otp`, { email: formData.email });
-          alert(`Verification code dispatched to ${formData.email}`);
-          setEmailVerification({ state: 'pending', otp: '', loading: false });
+          await axios.post(`${bUrl}/api/auth/verify-email-request`, { email: currentUser.email });
+          setEmailVerification({...emailVerification, state: 'pending', loading: false});
+          alert("Verification OTP sent to your email.");
       } catch (err) {
-          alert("Failed to send OTP. Check SMTP settings.");
-          setEmailVerification(prev => ({ ...prev, loading: false }));
+          alert("Failed to send verification email. Please try again.");
+          setEmailVerification({...emailVerification, loading: false});
       }
   };
 
   const handleVerifyEmailSubmit = async () => {
-      setEmailVerification(prev => ({ ...prev, loading: true }));
+      setEmailVerification({...emailVerification, loading: true});
       try {
           const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-          const { data } = await axios.post(`${bUrl}/api/otp/verify-otp`, { email: formData.email, otp: emailVerification.otp });
-          
-          if (data.success) {
-              // Update backend user status
-              await axios.post(`${bUrl}/api/auth/sync`, {
-                  userId: currentUser.uid,
-                  email: currentUser.email,
-                  emailVerified: true
-              });
-              alert("Email Identity Verified!");
-              setEmailVerification({ state: 'verified', otp: '', loading: false });
-              setUserData(prev => ({ ...prev, emailVerified: true }));
-          } else {
-              alert("Invalid Cryptographic Signature Code.");
-              setEmailVerification(prev => ({ ...prev, loading: false }));
-          }
+          await axios.post(`${bUrl}/api/auth/verify-email-confirm`, { 
+              email: currentUser.email,
+              otp: emailVerification.otp
+          });
+          setEmailVerification({...emailVerification, state: 'verified', loading: false});
+          alert("Email verified successfully!");
       } catch (err) {
-          console.error("Email verification error:", err);
-          alert("Invalid Cryptographic Signature Code.");
-          setEmailVerification(prev => ({ ...prev, loading: false }));
+          alert("Invalid OTP. Please check and try again.");
+          setEmailVerification({...emailVerification, loading: false});
       }
   };
 
-  const handleChange = (e) => setFormData({...formData, [e.target.name]: e.target.value});
-  const [isSaving, setIsSaving] = useState(false);
-
   const handleSave = async (e) => {
     e.preventDefault();
-    
-    if (formData.newPassword) {
-        if (formData.newPassword !== formData.confirmNewPassword) {
-            alert("New passwords do not match!");
-            return;
-        }
-        if (!formData.oldPassword) {
-            alert("Current password is required to change to a new one.");
-            return;
-        }
-    }
-
     setIsSaving(true);
     try {
-        const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-
-        // 1. Handle Password Change (requires re-auth)
-        if (formData.newPassword) {
+        // Profile Sync
+        await updateUserProfile(formData.fullName);
+        
+        // Password Change
+        if (isChangingPassword && formData.newPassword) {
+            if (formData.newPassword !== formData.confirmNewPassword) {
+                throw new Error("New passwords do not match.");
+            }
             await updateUserPassword(formData.oldPassword, formData.newPassword);
         }
 
-        // 2. Handle Profile Update (Display Name)
-        if (formData.fullName !== (currentUser.displayName || '')) {
-            await updateUserProfile({ displayName: formData.fullName });
-        }
-
-        // 3. Sync all changes to Backend
+        // Backend Final Sync
+        const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
         await axios.post(`${bUrl}/api/auth/sync`, {
             userId: currentUser.uid,
             email: currentUser.email,
-            fullName: formData.fullName
+            fullName: formData.fullName,
+            emailVerified: emailVerification.state === 'verified'
         });
 
-        alert("All security parameters and identity metadata updated successfully.");
+        alert("Settings synchronized successfully!");
         
-        // Reset sensitive fields
+        setIsChangingPassword(false);
         setFormData(prev => ({
             ...prev,
             oldPassword: '',
@@ -168,7 +153,7 @@ const Settings = () => {
          <ArrowLeft size={20} /> Back to Dashboard
       </button>
 
-      <div className="glass-panel" style={{ maxWidth: '800px', margin: '0 auto', padding: '48px' }}>
+      <div className="glass-panel" style={{ maxWidth: '850px', margin: '0 auto', padding: '48px' }}>
          <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '20px', marginBottom: '32px' }}>
             <h1 style={{ fontSize: '2.2rem', fontWeight: '700', marginBottom: '8px' }}>Account Settings</h1>
             <p style={{ color: 'var(--text-muted)' }}>Manage your identity, security, and encryption preferences.</p>
@@ -182,10 +167,10 @@ const Settings = () => {
                   <input type="text" name="fullName" className="input-field" value={formData.fullName} onChange={handleChange} required />
                </div>
                <div className="input-group" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
-                  <label>Email Address {(userData?.emailVerified || emailVerification.state === 'verified') && <span style={{ color: 'var(--success)' }}>✓ Verified</span>}</label>
+                  <label>Email Address {emailVerification.state === 'verified' && <span style={{ color: 'var(--success)' }}>✓ Verified</span>}</label>
                   <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      <input type="email" name="email" className="input-field" value={formData.email} onChange={handleChange} required disabled={userData?.emailVerified || emailVerification.state === 'verified'} style={{ minWidth: 0, flex: '1 1 180px' }} />
-                      {!userData?.emailVerified && emailVerification.state === 'idle' && (
+                      <input type="email" name="email" className="input-field" value={formData.email} onChange={handleChange} required disabled={emailVerification.state === 'verified'} style={{ minWidth: 0, flex: '1 1 180px' }} />
+                      {emailVerification.state === 'idle' && (
                           <button type="button" onClick={handleVerifyEmailReq} disabled={emailVerification.loading} style={{ padding: '0 16px', height: '44px', background: 'var(--accent-primary)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', fontWeight: '500', flex: '0 0 auto' }}>
                               {emailVerification.loading ? '...' : 'Verify'}
                           </button>
@@ -193,7 +178,7 @@ const Settings = () => {
                   </div>
                   {emailVerification.state === 'pending' && (
                       <div style={{ display: 'flex', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
-                          <input type="text" placeholder="6-digit OTP" className="input-field" value={emailVerification.otp} onChange={(e) => setEmailVerification({...emailVerification, otp: e.target.value})} maxLength="6" style={{ letterSpacing: '4px', textAlign: 'center', minWidth: 0, flex: '1 1 140px' }} />
+                          <input type="text" placeholder="OTP" className="input-field" value={emailVerification.otp} onChange={(e) => setEmailVerification({...emailVerification, otp: e.target.value})} maxLength="6" style={{ letterSpacing: '4px', textAlign: 'center', minWidth: 0, flex: '1 1 120px' }} />
                           <button type="button" onClick={handleVerifyEmailSubmit} disabled={emailVerification.loading} className="btn-primary" style={{ padding: '0 24px', width: 'auto', flex: '0 0 auto' }}>
                               {emailVerification.loading ? '...' : 'Submit'}
                           </button>
@@ -203,68 +188,90 @@ const Settings = () => {
             </div>
 
             <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '20px', color: 'var(--accent-primary)' }}>Security Parameter Update</h3>
-            <div className="settings-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '40px' }}>
-                <div className="input-group" style={{ marginBottom: 0, gridColumn: 'span 2' }}>
-                  <label>Current Password</label>
-                  <div style={{ position: 'relative' }}>
-                    <input 
-                      type={showPasswords.old ? "text" : "password"} 
-                      name="oldPassword" 
-                      className="input-field" 
-                      value={formData.oldPassword} 
-                      onChange={handleChange} 
-                      placeholder="Required to make password changes" 
-                      style={{ paddingRight: '48px' }} 
-                    />
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPasswords({...showPasswords, old: !showPasswords.old})}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                      {showPasswords.old ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
+            <div style={{ marginBottom: '40px' }}>
+               {!isChangingPassword ? (
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
+                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                        <span style={{ fontSize: '1rem', fontWeight: '500' }}>Password</span>
+                        <span style={{ color: 'var(--text-muted)', letterSpacing: '4px' }}>••••••••</span>
+                     </div>
+                     <button type="button" onClick={() => setIsChangingPassword(true)} style={{ background: 'transparent', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent-primary)'; e.currentTarget.style.color = '#000'; }} onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--accent-primary)'; }}>
+                        Change Password
+                     </button>
                   </div>
-                </div>
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>New Password</label>
-                  <div style={{ position: 'relative' }}>
-                    <input 
-                      type={showPasswords.new ? "text" : "password"} 
-                      name="newPassword" 
-                      className="input-field" 
-                      value={formData.newPassword} 
-                      onChange={handleChange} 
-                      style={{ paddingRight: '48px' }}
-                    />
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                      {showPasswords.new ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
+               ) : (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px', animation: 'fadeIn 0.3s ease-out' }}>
+                     <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label>Current Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input 
+                            type={showPasswords.old ? "text" : "password"} 
+                            name="oldPassword" 
+                            className="input-field" 
+                            value={formData.oldPassword} 
+                            onChange={handleChange} 
+                            placeholder="Current" 
+                            required
+                            style={{ paddingRight: '40px' }} 
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPasswords({...showPasswords, old: !showPasswords.old})}
+                            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          >
+                            {showPasswords.old ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                     </div>
+                     <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label>New Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input 
+                            type={showPasswords.new ? "text" : "password"} 
+                            name="newPassword" 
+                            className="input-field" 
+                            value={formData.newPassword} 
+                            onChange={handleChange} 
+                            placeholder="New"
+                            required
+                            style={{ paddingRight: '40px' }}
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})}
+                            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          >
+                            {showPasswords.new ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                     </div>
+                     <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label>Confirm Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input 
+                            type={showPasswords.confirm ? "text" : "password"} 
+                            name="confirmNewPassword" 
+                            className="input-field" 
+                            value={formData.confirmNewPassword} 
+                            onChange={handleChange} 
+                            placeholder="Re-type"
+                            required
+                            style={{ paddingRight: '40px' }}
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})}
+                            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          >
+                            {showPasswords.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                     </div>
+                     <div style={{ gridColumn: 'span 3', textAlign: 'right', marginTop: '4px' }}>
+                        <button type="button" onClick={() => setIsChangingPassword(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}>Cancel change</button>
+                     </div>
                   </div>
-                </div>
-                <div className="input-group" style={{ marginBottom: 0 }}>
-                  <label>Confirm New Password</label>
-                  <div style={{ position: 'relative' }}>
-                    <input 
-                      type={showPasswords.confirm ? "text" : "password"} 
-                      name="confirmNewPassword" 
-                      className="input-field" 
-                      value={formData.confirmNewPassword} 
-                      onChange={handleChange} 
-                      style={{ paddingRight: '48px' }}
-                    />
-                    <button 
-                      type="button" 
-                      onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})}
-                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                    >
-                      {showPasswords.confirm ? <EyeOff size={20} /> : <Eye size={20} />}
-                    </button>
-                  </div>
-                </div>
+               )}
             </div>
 
             <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '20px', color: 'var(--accent-primary)' }}>Cryptographic Identity</h3>
@@ -273,7 +280,7 @@ const Settings = () => {
                   <Key size={24} color="var(--success)" />
                   <span style={{ fontWeight: '600', fontSize: '1.1rem' }}>Master Encryption Key</span>
                </div>
-               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '20px', lineHeight: '1.5' }}>This 40-character key is used to execute mathematical, military-grade client-side encryption on your payloads locally before they reach the backend. It cannot be tampered with manually and auto-rotates every 30 days securely.</p>
+               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '20px', lineHeight: '1.5' }}>This 40-character key is used to execute mathematical, military-grade client-side encryption on your payloads locally before they reach the backend. It auto-rotates every 30 days securely.</p>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', position: 'relative' }}>
                   <input 
                     type={showVaultKey ? "text" : "password"} 
@@ -291,7 +298,7 @@ const Settings = () => {
                       {showVaultKey ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                   </div>
-                  <button type="button" onClick={handleCopy} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '56px', background: 'var(--accent-primary)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 10px rgba(59, 130, 246, 0.4)', position: 'absolute', right: '0', top: '0', bottom: '0' }} onMouseOver={(e) => e.currentTarget.style.background = '#2563eb'} onMouseOut={(e) => e.currentTarget.style.background = 'var(--accent-primary)'}>
+                  <button type="button" onClick={handleCopy} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '56px', background: 'var(--accent-primary)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 10px rgba(59, 130, 246, 0.4)', position: 'absolute', right: '0', top: '0', bottom: '0' }}>
                      {copied ? <Check size={20} strokeWidth={3} color="#10b981" /> : <Copy size={20} />}
                   </button>
                 </div>
