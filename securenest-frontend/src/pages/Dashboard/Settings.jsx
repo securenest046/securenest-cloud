@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Key, ArrowLeft, Save, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
+import Loader from '../../components/Loader';
 
 const Settings = () => {
   const { currentUser, updateUserPassword, updateUserProfile } = useAuth();
@@ -14,6 +15,7 @@ const Settings = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
 
   const [formData, setFormData] = useState({
     fullName: '',
@@ -61,7 +63,12 @@ const Settings = () => {
             setVaultKey("Connection Error: Backend Unreachable");
         }
     };
-    fetchData();
+    const init = async () => {
+        setPageLoading(true);
+        await fetchData();
+        setTimeout(() => setPageLoading(false), 1200);
+    };
+    init();
   }, [currentUser]);
 
   const handleCopy = () => {
@@ -314,6 +321,8 @@ const Settings = () => {
             </div>
          </form>
       </div>
+
+      {pageLoading && <Loader message="Accessing Identity Settings..." />}
     </div>
   );
 };

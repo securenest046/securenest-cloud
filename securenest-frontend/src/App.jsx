@@ -6,11 +6,11 @@ import OtpVerify from './pages/Auth/OtpVerify';
 import ForgotPassword from './pages/Auth/ForgotPassword';
 import Home from './pages/Dashboard/Home';
 import Settings from './pages/Dashboard/Settings';
-import './index.css';
+import Loader from './components/Loader';
 
 const PrivateRoute = ({ children }) => {
   const { currentUser, loading, isSwitching } = useAuth();
-  if (loading) return null; // Avoid flicker during auth check
+  if (loading) return <Loader message="Verifying Identity..." />; 
   return (currentUser || isSwitching) ? children : <Navigate to="/login" />;
 };
 

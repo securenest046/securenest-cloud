@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
+import Loader from '../../components/Loader';
 
 const Home = () => {
   const { currentUser, logout, login, signup, loginWithGoogle, isSwitching, setIsSwitching } = useAuth();
@@ -23,6 +24,8 @@ const Home = () => {
   
   const fileInputRef = React.useRef(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [pageLoading, setPageLoading] = useState(true);
+  const [loaderMessage, setLoaderMessage] = useState("Accessing Secure Vault...");
 
   const [recentAccounts, setRecentAccounts] = useState(() => {
     const saved = localStorage.getItem('recentAccounts');
@@ -125,7 +128,13 @@ const Home = () => {
   };
 
   useEffect(() => {
-    fetchDashboardData();
+    const initFetch = async () => {
+      setPageLoading(true);
+      await fetchDashboardData();
+      // Artificial delay to show off the premium animation and ensure smooth transition
+      setTimeout(() => setPageLoading(false), 1800);
+    };
+    initFetch();
   }, [currentUser, currentFolder]);
 
   const handleLogout = async () => {
@@ -268,11 +277,13 @@ const Home = () => {
       setViewingFile({ meta: file, url: blobCache[file._id] });
       return;
     }
+
+    setLoaderMessage(`Decrypting ${file.originalName}...`);
+    setPageLoading(true);
     
     try {
         const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
         
-        // Use the new Proxy Retrieval Pipeline to bypass browser CORS (Telegram CDN restriction)
         // Use the new Proxy Retrieval Pipeline to bypass browser CORS (Telegram CDN restriction)
         const response = await fetch(`${bUrl}/api/storage/proxy/${file._id}`);
         if (!response.ok) throw new Error("Proxy retrieval failed.");
@@ -291,6 +302,9 @@ const Home = () => {
     } catch (error) {
         console.error("Retrieval Error", error);
         alert("Failed to decrypt or retrieve file.");
+    } finally {
+        setPageLoading(false);
+        setLoaderMessage("Accessing Secure Vault...");
     }
   };
 
@@ -1057,6 +1071,8 @@ const Home = () => {
       )}
 
       </main>
+
+      {pageLoading && <Loader message={loaderMessage} />}
     </div>
   );
 };
