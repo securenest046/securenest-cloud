@@ -67,18 +67,19 @@ const Home = () => {
       }
     } catch (error) {
       console.error("Dashboard Sync Failed", error);
-      // Final attempt to at least get the key if storage fetch failed
+      const msg = error.response ? `API Error: ${error.response.status}` : "Backend Unreachable (Check Connection)";
+      setVaultKey(`Error: ${msg}`);
+      
+      // Fallback: Attempt to load files even if sync had issues
       try {
           const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-          const { data } = await axios.post(`${bUrl}/api/auth/sync`, {
-              userId: currentUser.uid,
-              email: currentUser.email
-          });
-          if (data.success) setVaultKey(data.user.encryptionKey);
-          else setVaultKey("Connection Error: Check Backend URL");
-      } catch (e) {
-          console.error("Final recovery sync failed", e);
-          setVaultKey("Connection Error: Backend Unreachable");
+          const { data } = await axios.get(`${bUrl}/api/storage/files/${currentUser.uid}`);
+          if (data.success) {
+              setUserFiles(data.files);
+              setTotalStorageUsed(data.totalStorageUsed);
+          }
+      } catch (e) { 
+          console.error("Critical recovery fetch failed", e);
       }
     }
   };

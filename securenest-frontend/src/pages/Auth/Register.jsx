@@ -26,7 +26,7 @@ const Register = () => {
   });
 
   const navigate = useNavigate();
-  const { loginWithGoogle } = useAuth(); // Added for Google sync
+  const { signup, loginWithGoogle } = useAuth(); // Added for Google sync🛡️🔒✨✅
 
   useEffect(() => {
     const p = formData.password;
@@ -122,8 +122,8 @@ const Register = () => {
           </div>
           
           <div className="input-group" style={{ marginBottom: '16px' }}>
-            <label>Phone Number (Optional)</label>
-            <input type="tel" name="phone" className="input-field" onChange={handleChange} placeholder="+1 (555) 000-0000" />
+            <label>Phone Number (Required)</label>
+            <input type="tel" name="phone" className="input-field" onChange={handleChange} placeholder="+1 (555) 000-0000" required />
           </div>
 
           <div className="input-group" style={{ marginBottom: '16px' }}>

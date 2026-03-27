@@ -15,21 +15,24 @@ connectDB();
 
 const app = express();
 
-// Security Middlewares
-app.use(helmet()); // Protects against common web vulnerabilities by setting HTTP headers
-app.use(mongoSanitize()); // Prevents NoSQL injection
+// Middleware
+app.use(cors()); // Enable CORS early to prevent pre-flight blocks
+app.use(express.json());
 
-// Brute-force protection
+// Security Middlewares (Hardened but optimized for Vault high-velocity assets)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" }, // Allow images/blobs from backend to be read by frontend
+  contentSecurityPolicy: false, // Disable CSP for now to prevent strict domain blocking during production migration
+})); 
+app.use(mongoSanitize()); 
+
+// Brute-force protection (Increased for high-velocity thumbnail generation)
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again after 15 minutes'
+  windowMs: 15 * 60 * 1000, 
+  max: 1000, // Increased to 1000 to prevent thumbnail loading from triggering blocks
+  message: 'Too many vault requests. Security throttle active. Try again in 15 mins.'
 });
 app.use('/api/', limiter);
-
-// Middleware
-app.use(cors());
-app.use(express.json());
 
 // Routes
 const authRoutes = require('./src/routes/auth');

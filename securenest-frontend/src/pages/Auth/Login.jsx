@@ -28,13 +28,18 @@ const Login = () => {
       await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/auth/sync`, {
           userId: userCredentials.user.uid,
           email: userCredentials.user.email,
-          fullName: userCredentials.user.displayName || 'SecureNest User'
+          fullName: userCredentials.user.displayName || 'SecureNest User',
+          phone: userCredentials.user.phoneNumber || 'Google Verified'
       });
 
       navigate('/home');
     } catch (error) {
       console.error(error);
-      alert(`Firebase Google Auth Error: ${error.message}\n\nHint: Verify your domain is authorized in Firebase Console.`);
+      const isDomainError = error.message.includes('unauthorized-domain');
+      alert(isDomainError 
+        ? "CRITICAL: Domain not authorized in Firebase! Please add 'securenest-cloud.vercel.app' to your Firebase Console > Authentication > Settings > Authorized Domains."
+        : `Google Authentication Failed: ${error.message}`
+      );
     }
   };
 
