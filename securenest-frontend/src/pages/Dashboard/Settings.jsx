@@ -30,7 +30,7 @@ const Settings = () => {
   });
 
   const [emailVerification, setEmailVerification] = useState({
-      state: 'idle', 
+      state: 'idle', // 'idle', 'pending', 'verified'
       otp: '',
       loading: false
   });
@@ -107,8 +107,10 @@ const Settings = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
+        // Profile Sync
         await updateUserProfile(formData.fullName);
         
+        // Password Change
         if (isChangingPassword && formData.newPassword) {
             if (formData.newPassword !== formData.confirmNewPassword) {
                 throw new Error("New passwords do not match.");
@@ -116,6 +118,7 @@ const Settings = () => {
             await updateUserPassword(formData.oldPassword, formData.newPassword);
         }
 
+        // Backend Final Sync
         const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
         await axios.post(`${bUrl}/api/auth/sync`, {
             userId: currentUser.uid,
@@ -197,82 +200,77 @@ const Settings = () => {
                      </button>
                   </div>
                ) : (
-                  <>
-                    <div className="settings-password-grid">
-                       <div className="input-group" style={{ marginBottom: 0 }}>
-                          <label>Current Password</label>
-                          <div style={{ position: 'relative' }}>
-                            <input 
-                              type={showPasswords.old ? "text" : "password"} 
-                              name="oldPassword" 
-                              className="input-field" 
-                              value={formData.oldPassword} 
-                              onChange={handleChange} 
-                              placeholder="Current" 
-                              required
-                              autoComplete="new-password"
-                              style={{ paddingRight: '40px', background: 'rgba(255,255,255,0.05)' }} 
-                            />
-                            <button 
-                              type="button" 
-                              onClick={() => setShowPasswords({...showPasswords, old: !showPasswords.old})}
-                              style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                            >
-                              {showPasswords.old ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                       </div>
-                       <div className="input-group" style={{ marginBottom: 0 }}>
-                          <label>New Password</label>
-                          <div style={{ position: 'relative' }}>
-                            <input 
-                              type={showPasswords.new ? "text" : "password"} 
-                              name="newPassword" 
-                              className="input-field" 
-                              value={formData.newPassword} 
-                              onChange={handleChange} 
-                              placeholder="New"
-                              required
-                              autoComplete="new-password"
-                              style={{ paddingRight: '40px', background: 'rgba(255,255,255,0.05)' }}
-                            />
-                            <button 
-                              type="button" 
-                              onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})}
-                              style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                            >
-                              {showPasswords.new ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                       </div>
-                       <div className="input-group" style={{ marginBottom: 0 }}>
-                          <label>Confirm Password</label>
-                          <div style={{ position: 'relative' }}>
-                            <input 
-                              type={showPasswords.confirm ? "text" : "password"} 
-                              name="confirmNewPassword" 
-                              className="input-field" 
-                              value={formData.confirmNewPassword} 
-                              onChange={handleChange} 
-                              placeholder="Re-type"
-                              required
-                              autoComplete="new-password"
-                              style={{ paddingRight: '40px', background: 'rgba(255,255,255,0.05)' }}
-                            />
-                            <button 
-                              type="button" 
-                              onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})}
-                              style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
-                            >
-                              {showPasswords.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
-                            </button>
-                          </div>
-                       </div>
-                    </div>
-                    <div style={{ textAlign: 'right', marginTop: '12px' }}>
-                       <button type="button" onClick={() => setIsChangingPassword(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}>Cancel change</button>
-                    </div>
-                  </>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '16px', animation: 'fadeIn 0.3s ease-out' }}>
+                     <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label>Current Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input 
+                            type={showPasswords.old ? "text" : "password"} 
+                            name="oldPassword" 
+                            className="input-field" 
+                            value={formData.oldPassword} 
+                            onChange={handleChange} 
+                            placeholder="Current" 
+                            required
+                            style={{ paddingRight: '40px' }} 
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPasswords({...showPasswords, old: !showPasswords.old})}
+                            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          >
+                            {showPasswords.old ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                     </div>
+                     <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label>New Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input 
+                            type={showPasswords.new ? "text" : "password"} 
+                            name="newPassword" 
+                            className="input-field" 
+                            value={formData.newPassword} 
+                            onChange={handleChange} 
+                            placeholder="New"
+                            required
+                            style={{ paddingRight: '40px' }}
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPasswords({...showPasswords, new: !showPasswords.new})}
+                            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          >
+                            {showPasswords.new ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                     </div>
+                     <div className="input-group" style={{ marginBottom: 0 }}>
+                        <label>Confirm Password</label>
+                        <div style={{ position: 'relative' }}>
+                          <input 
+                            type={showPasswords.confirm ? "text" : "password"} 
+                            name="confirmNewPassword" 
+                            className="input-field" 
+                            value={formData.confirmNewPassword} 
+                            onChange={handleChange} 
+                            placeholder="Re-type"
+                            required
+                            style={{ paddingRight: '40px' }}
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPasswords({...showPasswords, confirm: !showPasswords.confirm})}
+                            style={{ position: 'absolute', right: '10px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}
+                          >
+                            {showPasswords.confirm ? <EyeOff size={16} /> : <Eye size={16} />}
+                          </button>
+                        </div>
+                     </div>
+                     <div style={{ gridColumn: 'span 3', textAlign: 'right', marginTop: '4px' }}>
+                        <button type="button" onClick={() => setIsChangingPassword(false)} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: '0.85rem', textDecoration: 'underline' }}>Cancel change</button>
+                     </div>
+                  </div>
                )}
             </div>
 
