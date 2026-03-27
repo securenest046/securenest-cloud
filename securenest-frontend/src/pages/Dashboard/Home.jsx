@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, File, ImageIcon, Video, User, Settings as SettingsIcon, LogOut, Key, Download, ChevronLeft, X, RefreshCw, Copy, Check, Fingerprint, Globe, Mail, UserPlus, Eye, EyeOff, ShieldAlert, LayoutGrid, Grid, Maximize2, List as ListIcon } from 'lucide-react';
+import { Upload, File, ImageIcon, Video, User, Settings as SettingsIcon, LogOut, Key, Download, ChevronLeft, X, RefreshCw, Copy, Check, Fingerprint, Globe, Mail, UserPlus, Eye, EyeOff, ShieldAlert, LayoutGrid, Grid, Maximize2, List as ListIcon, Trash2 } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 
 const Home = () => {
@@ -300,7 +300,7 @@ const Home = () => {
                           }}>
                              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                                 <div className={`avatar-container ${isSessionActive ? 'avatar-glow-green' : 'avatar-glow-red'}`}>
-                                   <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700' }}>{acc.email[0].toUpperCase()}</div>
+                                   <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', fontWeight: '700' }}>{acc.email ? acc.email[0].toUpperCase() : '?'}</div>
                                 </div>
                                 <div style={{ display: 'flex', flexDirection: 'column', maxWidth: '150px' }}>
                                    <span style={{ fontSize: '0.85rem', fontWeight: '600', color: isSessionActive ? '#fff' : 'var(--text-muted)' }}>{acc.displayName}</span>
@@ -395,7 +395,7 @@ const Home = () => {
                       {isEmailLocked ? (
                          <div style={{ textAlign: 'center', marginBottom: '32px' }}>
                             <div className="avatar-container avatar-glow-red" style={{ width: '64px', height: '64px', margin: '0 auto 16px auto' }}>
-                               <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>{accountFormData.email[0].toUpperCase()}</div>
+                               <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '800' }}>{accountFormData.email ? accountFormData.email[0].toUpperCase() : '?'}</div>
                             </div>
                             <h3>Verify Identity</h3>
                             <p style={{ color: 'var(--text-muted)' }}>Re-authenticating <b>{accountFormData.email}</b></p>
