@@ -273,6 +273,7 @@ const Home = () => {
         const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
         
         // Use the new Proxy Retrieval Pipeline to bypass browser CORS (Telegram CDN restriction)
+        // Use the new Proxy Retrieval Pipeline to bypass browser CORS (Telegram CDN restriction)
         const response = await fetch(`${bUrl}/api/storage/proxy/${file._id}`);
         if (!response.ok) throw new Error("Proxy retrieval failed.");
         
@@ -441,7 +442,7 @@ const Home = () => {
                 </div>
                 <div style={{ background: 'rgba(0,0,0,0.5)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
                 <div style={{ fontFamily: 'monospace', color: 'var(--success)', fontSize: '0.85rem', wordBreak: 'break-all', letterSpacing: showVaultKey ? '1px' : '4px', textAlign: 'center', flex: 1 }}>
-                  {showVaultKey ? vaultKey : 'Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢Ã¢â‚¬Â¢'}
+                  {showVaultKey ? vaultKey : '••••••••••••••••••••••••'}
                 </div>
                 <div style={{ display: 'flex', gap: '8px' }}>
                   <button 
@@ -680,10 +681,11 @@ const Home = () => {
                                       </div>
                                    )}
                               </div>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', justifyContent: 'flex-end' }}>
-                                 <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{file.isFolder ? '--' : `${(file.fileSize / 1024 / 1024).toFixed(2)} MB`}</span>
-                                 <span style={{ color: 'var(--text-muted)', fontSize: '0.85rem', whiteSpace: 'nowrap' }}>{new Date(file.createdAt).toLocaleDateString()}</span>
-                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                  <span style={{ whiteSpace: 'nowrap' }}>{file.isFolder ? 'Directory' : `${(file.fileSize / 1024 / 1024).toFixed(3)} MB`}</span>
+                                  <span>•</span>
+                                  <span style={{ whiteSpace: 'nowrap' }}>{new Date(file.createdAt).toLocaleDateString()}</span>
+                               </div>
                            </div>
                          </div>
                       ))}
@@ -721,7 +723,7 @@ const Home = () => {
                               ) : (
                                  <>
                                    <h4 style={{ fontSize: viewMode === 'small' ? '0.85rem' : '1.05rem', fontWeight: '600', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{file.originalName}</h4>
-                                   <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{file.isFolder ? 'Directory' : `${(file.fileSize / 1024 / 1024).toFixed(2)} MB`} Ã¢â‚¬Â¢ {new Date(file.createdAt).toLocaleDateString()}</p>
+                                    <p style={{ color: 'var(--text-muted)', fontSize: '0.8rem' }}>{file.isFolder ? 'Directory' : `${(file.fileSize / 1024 / 1024).toFixed(3)} MB`} • {new Date(file.createdAt).toLocaleDateString()}</p>
                                  </>
                               )}
                               
