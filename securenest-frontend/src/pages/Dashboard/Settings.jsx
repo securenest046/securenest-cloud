@@ -212,6 +212,7 @@ const Settings = () => {
                             onChange={handleChange} 
                             placeholder="Current" 
                             required
+                            autoComplete="new-password"
                             style={{ paddingRight: '40px' }} 
                           />
                           <button 
@@ -234,6 +235,7 @@ const Settings = () => {
                             onChange={handleChange} 
                             placeholder="New"
                             required
+                            autoComplete="new-password"
                             style={{ paddingRight: '40px' }}
                           />
                           <button 
@@ -256,6 +258,7 @@ const Settings = () => {
                             onChange={handleChange} 
                             placeholder="Re-type"
                             required
+                            autoComplete="new-password"
                             style={{ paddingRight: '40px' }}
                           />
                           <button 

@@ -256,7 +256,11 @@ const Home = () => {
   };
   
   // Real-Time Storage Calculations Context
-  const getPercentage = (used, max) => Math.min((used / max) * 100, 100).toFixed(1);
+  const getPercentage = (used, max) => {
+    const val = (used / max) * 100;
+    if (used > 0 && val < 0.1) return val.toFixed(3);
+    return Math.min(val, 100).toFixed(1);
+  };
   const overallUsed = getPercentage(totalStorageUsed, MAX_STORAGE);
   
   const getCategoryTheme = (type) => {
@@ -299,12 +303,11 @@ const Home = () => {
       conicStops.push(`rgba(255,255,255,0.05) 0deg`);
   } else {
       dynamicCategories.forEach(cat => {
-          const spanDegrees = (cat.size / MAX_STORAGE) * 360;
+          const spanDegrees = (cat.size / totalStorageUsed) * 360;
           conicStops.push(`${cat.theme.color} ${currentDegree}deg`);
           conicStops.push(`${cat.theme.color} ${currentDegree + spanDegrees}deg`);
           currentDegree += spanDegrees;
       });
-      conicStops.push(`rgba(255,255,255,0.05) ${currentDegree}deg`);
   }
   const conicGradientStr = `conic-gradient(${conicStops.join(', ')})`;
 
@@ -640,7 +643,7 @@ const Home = () => {
                 <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}></div>
                 <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>Free Space</span>
               </div>
-              <span style={{ fontWeight: '600', fontSize: '1rem', color: 'var(--text-muted)' }}>{(100 - parseFloat(overallUsed)).toFixed(1)}%</span>
+               <span style={{ fontWeight: '600', fontSize: '1rem', color: 'var(--text-muted)' }}>{parseFloat(overallUsed) > 0 && parseFloat(overallUsed) < 0.1 ? (100 - parseFloat(overallUsed)).toFixed(3) : (100 - parseFloat(overallUsed)).toFixed(1)}%</span>
             </div>
           </div>
         </div>
