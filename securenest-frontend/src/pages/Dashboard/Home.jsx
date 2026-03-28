@@ -39,6 +39,9 @@ const Home = () => {
   const [isAuthVerifying, setIsAuthVerifying] = useState(false);
   const [authError, setAuthError] = useState("");
 
+  // Drag-and-Drop Matrix State 🛡️
+  const [isDragging, setIsDragging] = useState(false);
+
   const [recentAccounts, setRecentAccounts] = useState(() => {
     const saved = localStorage.getItem('recentAccounts');
     return saved ? JSON.parse(saved) : [];
@@ -73,6 +76,92 @@ const Home = () => {
       if (err.message === 'REAUTH_CANCELLED' || err.name === 'NotAllowedError') return;
       // Fallback to manual password verification for unsupported/failed sessions
       setShowKeyAuthModal({ active: true, action });
+    }
+  };
+
+  /**
+   * Hierarchical Identity Relocation Hub 🛡️📂
+   */
+  const handleMoveIdentities = async (targetFolderId, targetFolderName = "Selected Identity") => {
+    if (selectedIds.length === 0) return;
+    
+    // Prevent moving a folder into itself
+    if (selectedIds.includes(targetFolderId)) {
+        showAlert("Relocation Failure", "Self-nesting is mathematically impossible within the vault.");
+        return;
+    }
+
+    setLoaderMessage(`Relocating ${selectedIds.length} identities to ${targetFolderName}...`);
+    setIsUploading(true);
+    try {
+        const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+        const { data } = await axios.patch(`${bUrl}/api/storage/move`, {
+            targetIds: selectedIds,
+            newParentId: targetFolderId,
+            userId: currentUser.uid
+        });
+
+        if (data.success) {
+            // Remove moved items from current view
+            setUserFiles(prev => prev.filter(f => !selectedIds.includes(f._id)));
+            showAlert("Vault Synchronized", `Successfully relocated ${selectedIds.length} identities.`);
+            setSelectedIds([]);
+        }
+    } catch (err) {
+        console.error("Relocation Error:", err);
+        showAlert("Branch Failure", "Failed to resolve the relocation request.");
+    } finally {
+        setIsUploading(false);
+        setLoaderMessage("Accessing Secure Vault...");
+    }
+  };
+
+  const handleMoveToNewFolder = async () => {
+    const folderName = prompt("Enter new folder name for relocation:");
+    if (!folderName) return;
+
+    setLoaderMessage("Constructing Destination Registry...");
+    setIsUploading(true);
+    try {
+        const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+        
+        // 1. Create the new folder in the current directory
+        const { data } = await axios.post(`${bUrl}/api/storage/folder`, {
+            userId: currentUser.uid,
+            originalName: folderName,
+            parentId: currentFolder?._id || null
+        });
+
+        if (data.success) {
+            const newFolder = data.folder;
+            setUserFiles(prev => [newFolder, ...prev]);
+            
+            // 2. Relocate selected items into this new folder
+            await handleMoveIdentities(newFolder._id, folderName);
+        }
+    } catch (err) {
+        console.error("New Folder Move Error:", err);
+        showAlert("Relocation Failure", "Failed to initialize the destination registry.");
+    } finally {
+        setIsUploading(false);
+        setLoaderMessage("Accessing Secure Vault...");
+    }
+  };
+
+  const handleItemDragStart = (e, item) => {
+    if (!selectedIds.includes(item._id)) {
+        setSelectedIds([item._id]);
+    }
+    e.dataTransfer.setData("type", "vault-move");
+    e.dataTransfer.setData("sourceId", item._id);
+  };
+
+  const handleFolderDropMove = async (e, folder) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const type = e.dataTransfer.getData("type");
+    if (type === "vault-move") {
+        await handleMoveIdentities(folder._id, folder.originalName);
     }
   };
 
@@ -480,6 +569,120 @@ const Home = () => {
     }
   };
 
+  /**
+   * Universal Drag-and-Drop Ingestion Matrix 🛡️✨
+   */
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set dragging to false if we leave the actual container
+    if (e.currentTarget.contains(e.relatedTarget)) return;
+    setIsDragging(false);
+  };
+
+  const handleDrop = async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    const items = e.dataTransfer.items;
+    if (!items || items.length === 0) return;
+
+    const entries = [];
+    for (const item of items) {
+      const entry = item.webkitGetAsEntry();
+      if (entry) entries.push(entry);
+    }
+
+    if (entries.length > 0) {
+      await processDroppedEntries(entries);
+    }
+  };
+
+  const processDroppedEntries = async (entries) => {
+    if (!vaultKey || vaultKey === 'Loading...') {
+      showAlert("Security Constraint", "Cryptographic Vault Key is not ready.");
+      return;
+    }
+
+    setIsUploading(true);
+    setLoaderMessage("Ingesting Platform Identities...");
+    const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+    const folderIdMap = { "": currentFolder?._id || null };
+    const newQueueItems = [];
+
+    const traverse = async (entry, path = "") => {
+      try {
+        if (entry.isFile) {
+          const file = await new Promise((resolve) => entry.file(resolve));
+          newQueueItems.push({
+            id: Math.random().toString(36).substr(2, 9),
+            file,
+            originalName: file.name,
+            status: 'pending',
+            progress: 0,
+            parentId: folderIdMap[path] || currentFolder?._id || null
+          });
+        } else if (entry.isDirectory) {
+          const directoryPath = path ? `${path}/${entry.name}` : entry.name;
+          
+          if (!folderIdMap[directoryPath]) {
+            const { data } = await axios.post(`${bUrl}/api/storage/folder`, {
+              userId: currentUser.uid,
+              originalName: entry.name,
+              parentId: folderIdMap[path] || currentFolder?._id || null
+            });
+            if (data.success) {
+              folderIdMap[directoryPath] = data.folder._id;
+              if (folderIdMap[path] === (currentFolder?._id || null)) {
+                setUserFiles(prev => prev.some(f => f._id === data.folder._id) ? prev : [data.folder, ...prev]);
+              }
+            }
+          }
+
+          const reader = entry.createReader();
+          const children = await new Promise((resolve, reject) => {
+            const results = [];
+            const read = () => {
+              reader.readEntries((entries) => {
+                if (entries.length) {
+                  results.push(...entries);
+                  read();
+                } else resolve(results);
+              }, reject);
+            };
+            read();
+          });
+
+          for (const child of children) {
+            await traverse(child, directoryPath);
+          }
+        }
+      } catch (err) {
+        console.error("Recursive Ingestion Failed for:", entry.name, err);
+      }
+    };
+
+    try {
+      for (const entry of entries) {
+        await traverse(entry);
+      }
+      setUploadQueue(prev => [...prev, ...newQueueItems]);
+      setIsUploadMinimized(false);
+    } catch (err) {
+      showAlert("Drop Failure", "Failed to resolve dropped directory structure.");
+    } finally {
+      setIsUploading(false);
+      setLoaderMessage("Accessing Secure Vault...");
+    }
+  };
+
   useEffect(() => {
     const processQueue = async () => {
       const activeTask = uploadQueue.find(t => t.status === 'encrypting' || t.status === 'uploading');
@@ -712,7 +915,22 @@ const Home = () => {
   });
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div 
+      style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* 🧬 Drag-and-Drop Ingestion Overlay 🛡️ */}
+      {isDragging && (
+        <div style={{ position: 'fixed', inset: '10px', background: 'rgba(59, 130, 246, 0.05)', backdropFilter: 'blur(10px)', border: '2px dashed var(--accent-primary)', borderRadius: '24px', zIndex: 20002, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)', animation: 'scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', cursor: 'copy', pointerEvents: 'none' }}>
+           <div style={{ background: 'rgba(59,130,246,0.1)', width: '100px', height: '100px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 0 40px rgba(59,130,246,0.2)' }}>
+              <Upload size={48} />
+           </div>
+           <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '0 0 8px 0', textShadow: '0 0 20px rgba(59,130,246,0.5)' }}>Release Identities</h2>
+           <p style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>Bit-Perfect Cryptographic Ingestion Ready</p>
+        </div>
+      )}
       
       {viewingFile && (
          <FileViewer 
@@ -957,7 +1175,36 @@ const Home = () => {
               {viewMode === 'list' ? (
                  <div className="file-grid-adaptive" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {sortedFiles.map(file => (
-                         <div key={file._id} onClick={() => handleFileClick(file)} className="file-card-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: '12px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap', position: 'relative' }} onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 1); }} onMouseOut={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; if (activeMenu !== file._id && selectedIds.length === 0) e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 0); }}>
+                         <div 
+                            key={file._id} 
+                            onClick={() => handleFileClick(file)} 
+                            className="file-card-group" 
+                            style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: '12px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap', position: 'relative' }} 
+                            onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 1); }} 
+                            onMouseOut={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; if (activeMenu !== file._id && selectedIds.length === 0) e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 0); }}
+                            draggable="true"
+                            onDragStart={(e) => handleItemDragStart(e, file)}
+                            onDragOver={(e) => {
+                              if (file.isFolder) {
+                                e.preventDefault();
+                                e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                                e.currentTarget.style.borderColor = 'var(--accent-primary)';
+                              }
+                            }}
+                            onDragLeave={(e) => {
+                              if (file.isFolder) {
+                                e.currentTarget.style.background = 'var(--bg-card)';
+                                e.currentTarget.style.borderColor = 'var(--border-color)';
+                              }
+                            }}
+                            onDrop={(e) => {
+                              if (file.isFolder) {
+                                e.currentTarget.style.background = 'var(--bg-card)';
+                                e.currentTarget.style.borderColor = 'var(--border-color)';
+                                handleFolderDropMove(e, file);
+                              }
+                            }}
+                          >
                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 auto', minWidth: '150px' }}>
                               <div style={{ width: '30px', height: '30px', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: file.isFolder ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)' }}>
                                  {file.isFolder ? (
@@ -1032,7 +1279,35 @@ const Home = () => {
                 ) : (
                    <div className="file-grid-adaptive" style={{ display: 'grid', gridTemplateColumns: viewMode === 'large' ? 'repeat(auto-fill, minmax(320px, 1fr))' : viewMode === 'small' ? 'repeat(auto-fill, minmax(130px, 1fr))' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
                       {sortedFiles.map(file => (
-                          <div key={file._id} onClick={() => handleFileClick(file)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: viewMode === 'small' ? '12px' : '20px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s', overflow: 'visible' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 1; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; if (activeMenu !== file._id && selectedIds.length === 0) e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 0; }}>
+                          <div 
+                             key={file._id} 
+                             onClick={() => handleFileClick(file)} 
+                             style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: viewMode === 'small' ? '12px' : '20px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s', overflow: 'visible' }} 
+                             onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 1; }} 
+                             onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; if (activeMenu !== file._id && selectedIds.length === 0) e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 0; }}
+                             draggable="true"
+                             onDragStart={(e) => handleItemDragStart(e, file)}
+                             onDragOver={(e) => {
+                               if (file.isFolder) {
+                                 e.preventDefault();
+                                 e.currentTarget.style.transform = 'scale(1.02)';
+                                 e.currentTarget.style.boxShadow = '0 0 20px var(--accent-primary)';
+                               }
+                             }}
+                             onDragLeave={(e) => {
+                               if (file.isFolder) {
+                                 e.currentTarget.style.transform = '';
+                                 e.currentTarget.style.boxShadow = '';
+                               }
+                             }}
+                             onDrop={(e) => {
+                               if (file.isFolder) {
+                                 e.currentTarget.style.transform = '';
+                                 e.currentTarget.style.boxShadow = '';
+                                 handleFolderDropMove(e, file);
+                               }
+                             }}
+                           >
                               
                               {/* Card Content */}
                               <div style={{ width: viewMode === 'small' ? '36px' : '64px', height: viewMode === 'small' ? '36px' : '64px', borderRadius: '12px', background: file.isFolder ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', color: file.isFolder ? '#f59e0b' : 'var(--accent-primary)' }}>
@@ -1439,16 +1714,48 @@ const Home = () => {
             animation: 'fadeInUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
           }}
         >
-           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderRight: '1px solid var(--border-color)', paddingRight: '16px' }}>
-              <div style={{ background: 'var(--accent-primary)', width: '26px', height: '26px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                 <Check size={14} />
-              </div>
-              <span style={{ fontWeight: '700', fontSize: '1.2rem' }}>{selectedIds.length}</span>
-           </div>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderRight: '1px solid var(--border-color)', paddingRight: '16px' }}>
+               <button 
+                 onClick={() => {
+                   const allIds = userFiles.map(f => f._id);
+                   const isAllSelected = allIds.every(id => selectedIds.includes(id)) && allIds.length > 0;
+                   if (isAllSelected) setSelectedIds([]);
+                   else setSelectedIds(allIds);
+                 }}
+                 className="select-all-btn"
+                 style={{ 
+                   background: 'rgba(59, 130, 246, 0.1)', 
+                   border: '1px solid rgba(59, 130, 246, 0.2)', 
+                   color: 'var(--accent-primary)', 
+                   fontSize: '0.75rem', 
+                   fontWeight: '700', 
+                   cursor: 'pointer', 
+                   padding: '6px 12px', 
+                   borderRadius: '8px',
+                   textTransform: 'uppercase',
+                   letterSpacing: '0.5px'
+                 }}
+               >
+                 {userFiles.length > 0 && userFiles.every(f => selectedIds.includes(f._id)) ? 'Deselect Page' : 'Select Page'}
+               </button>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                 <div style={{ background: 'var(--accent-primary)', width: '26px', height: '26px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                    <Check size={14} />
+                 </div>
+                 <span style={{ fontWeight: '700', fontSize: '1.2rem' }}>{selectedIds.length}</span>
+               </div>
+            </div>
 
            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <button 
-                onClick={handleBulkDownload} 
+               <button 
+                 onClick={handleMoveToNewFolder} 
+                 className="btn-primary" 
+                 style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--accent-primary)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
+               >
+                  <UserPlus size={14} /> Group & Move
+               </button>
+               <button 
+                 onClick={handleBulkDownload} 
                 className="btn-primary" 
                 style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
               >

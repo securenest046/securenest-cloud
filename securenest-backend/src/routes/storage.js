@@ -256,4 +256,25 @@ router.get('/metadata/:fileId', async (req, res) => {
     }
 });
 
+// Relocate multiple identities (files/folders) to a new directory
+router.patch('/move', async (req, res) => {
+    try {
+        const { targetIds, newParentId, userId } = req.body;
+        if (!targetIds || !Array.isArray(targetIds)) {
+            return res.status(400).json({ success: false, message: 'Target IDs are required.' });
+        }
+        
+        // Security check: ensure targets belong to requesting user (simplified for this context)
+        await FileMeta.updateMany(
+            { _id: { $in: targetIds }, userId },
+            { parentId: newParentId || null }
+        );
+
+        res.status(200).json({ success: true, message: 'Identities relocated successfully.' });
+    } catch (error) {
+        console.error("Relocation Error:", error);
+        res.status(500).json({ success: false, error: 'Failed to relocate vault identities.' });
+    }
+});
+
 module.exports = router;
