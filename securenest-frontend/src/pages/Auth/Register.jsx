@@ -11,6 +11,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import Loader from '../../components/Loader';
 import AnimatedBackground from '../../components/AnimatedBackground';
+import { useDialog } from '../../context/DialogContext';
 
 const Register = () => {
   const [showPassword, setShowPassword] = useState(false);
@@ -29,6 +30,7 @@ const Register = () => {
 
   const navigate = useNavigate();
   const { signup, loginWithGoogle } = useAuth();
+  const { showAlert } = useDialog();
 
   useEffect(() => {
     const p = formData.password;
@@ -65,7 +67,7 @@ const Register = () => {
     } catch (error) {
       console.error("Google Auth Flow Error:", error);
       const detail = error.response?.data?.detail || error.message;
-      alert(`Google Access Denied: ${detail}\n\nHINT: If the error is 'unauthorized-domain', you must add this URL to your Firebase Console Authorized Domains.`);
+      showAlert("Security Protocol Violation", `Google Access Denied: ${detail}\n\nHINT: If the error is 'unauthorized-domain', you must add this URL to your Firebase Console Authorized Domains.`);
     } finally {
       setIsSending(false);
     }
@@ -94,7 +96,7 @@ const Register = () => {
     } catch (err) {
        console.error(err);
        const detail = err.response?.data?.detail || err.message;
-       alert(`Registration Failure: ${detail}`);
+       showAlert("Registration Failure", `Security Sync Failed: ${detail}`);
     } finally {
        setIsSending(false);
     }

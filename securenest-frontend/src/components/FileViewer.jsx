@@ -1,7 +1,9 @@
 import React from 'react';
 import { X, Download } from 'lucide-react';
+import { useDialog } from '../context/DialogContext';
 
 const FileViewer = ({ file, blobUrl, vaultKey, onClose }) => {
+  const { showAlert } = useDialog();
   if (!file || !blobUrl) return null;
 
   const type = file.mimeType || '';
@@ -40,7 +42,7 @@ const FileViewer = ({ file, blobUrl, vaultKey, onClose }) => {
           
           <div style={{ display: 'flex', gap: '24px' }}>
              <button onClick={async () => {
-                if (!vaultKey) return alert("Cryptographic key missing. Refresh dashboard.");
+                if (!vaultKey) return showAlert("Security Restriction", "The cryptographic hardware key is missing from the state. Please refresh the dashboard to re-initialize the vault.");
                 const { downloadSecuredZip } = await import('../utils/zipUtils');
                 const rawBlob = await fetch(blobUrl).then(r => r.blob());
                 await downloadSecuredZip(file, rawBlob, vaultKey);

@@ -4,13 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { Key, ArrowLeft, Save, Copy, Check, Eye, EyeOff } from 'lucide-react';
 import axios from 'axios';
 import Loader from '../../components/Loader';
+import { useDialog } from '../../context/DialogContext';
 
 const Settings = () => {
   const { currentUser, updateUserPassword, updateUserProfile } = useAuth();
+  const { showAlert } = useDialog();
   const navigate = useNavigate();
   
   const [vaultKey, setVaultKey] = useState("Fetching unique vault hardware key...");
-  const [userData, setUserData] = useState(null);
   const [showVaultKey, setShowVaultKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -47,7 +48,6 @@ const Settings = () => {
                 email: currentUser.email
             });
             if (syncRes.data.success) {
-                setUserData(syncRes.data.user);
                 setVaultKey(syncRes.data.user.encryptionKey);
                 setFormData(prev => ({
                     ...prev,
@@ -58,7 +58,7 @@ const Settings = () => {
                     setEmailVerification(prev => ({ ...prev, state: 'verified' }));
                 }
             }
-        } catch (err) {
+        } catch (error) {
             console.error("Settings Sync Error", err);
             setVaultKey("Connection Error: Backend Unreachable");
         }
@@ -87,9 +87,9 @@ const Settings = () => {
           const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
           await axios.post(`${bUrl}/api/auth/verify-email-request`, { email: currentUser.email });
           setEmailVerification({...emailVerification, state: 'pending', loading: false});
-          alert("Verification OTP sent to your email.");
-      } catch (err) {
-          alert("Failed to send verification email. Please try again.");
+          showAlert("Security Synchronization", "Verification OTP sent to your email. Check your primary inbox.");
+      } catch (error) {
+          showAlert("Sync Failure", "Failed to initiate verification transmission. Please try again.");
           setEmailVerification({...emailVerification, loading: false});
       }
   };
@@ -103,9 +103,9 @@ const Settings = () => {
               otp: emailVerification.otp
           });
           setEmailVerification({...emailVerification, state: 'verified', loading: false});
-          alert("Email verified successfully!");
-      } catch (err) {
-          alert("Invalid OTP. Please check and try again.");
+          showAlert("Security Identity Confirmed", "Email address verified successfully across all secure nodes.");
+      } catch (error) {
+          showAlert("Verification Conflict", "Invalid OTP security code. Please check your credentials and try again.");
           setEmailVerification({...emailVerification, loading: false});
       }
   };
@@ -134,7 +134,7 @@ const Settings = () => {
             emailVerified: emailVerification.state === 'verified'
         });
 
-        alert("Settings synchronized successfully!");
+        showAlert("Sync Success", "Dashboard settings synchronized successfully!");
         
         setIsChangingPassword(false);
         setFormData(prev => ({
@@ -145,10 +145,10 @@ const Settings = () => {
         }));
         
         navigate('/home');
-    } catch (err) {
+    } catch (error) {
         console.error("Settings Update Failed:", err);
         const detail = err.response?.data?.detail || err.message;
-        alert(`Failed to update settings: ${detail}\n\nHINT: Re-authentication may have failed if your current password was incorrect.`);
+        showAlert("Sync Error", `Failed to update vault settings: ${detail}\n\nHINT: Re-authentication may have failed if your current password was incorrect.`);
     } finally {
         setIsSaving(false);
     }

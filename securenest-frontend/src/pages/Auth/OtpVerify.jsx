@@ -4,6 +4,7 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import Loader from '../../components/Loader';
 import AnimatedBackground from '../../components/AnimatedBackground';
+import { useDialog } from '../../context/DialogContext';
 
 const OtpVerify = () => {
   const [emailOtp, setEmailOtp] = useState('');
@@ -11,6 +12,7 @@ const OtpVerify = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signup } = useAuth();
+  const { showAlert } = useDialog();
   
   const email = location.state?.email || '';
 
@@ -38,9 +40,8 @@ const OtpVerify = () => {
             navigate('/home');
         }
     } catch (error) {
-        console.error(error);
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        alert(`Verification Failed at ${backendUrl}: ${error.response?.data?.message || error.message}`);
+        showAlert("Verification Integrity Failure", `The security transmission was declined at ${backendUrl}: ${error.response?.data?.message || error.message}`);
     } finally {
         setIsVerifying(false);
     }

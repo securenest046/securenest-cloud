@@ -5,6 +5,7 @@ import axios from 'axios';
 import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 import Loader from '../../components/Loader';
+import { useDialog } from '../../context/DialogContext';
 
 const Home = () => {
   const { currentUser, logout, login, signup, loginWithGoogle, isSwitching, setIsSwitching } = useAuth();
@@ -84,6 +85,9 @@ const Home = () => {
   
   const [currentFolder, setCurrentFolder] = useState(null);
   const [folderStack, setFolderStack] = useState([]);
+
+  // --- Global High-Fidelity Dialog System ---
+  const { showAlert, showConfirm, showPrompt, closeDialog } = useDialog();
 
   const fetchDashboardData = async () => {
     if (!currentUser) return;
@@ -170,7 +174,7 @@ const Home = () => {
         setRenamingId(null);
       }
     } catch (err) {
-      alert("Rename failed.");
+      showAlert("Vault Error", "Security Rename failed.");
     }
   };
 
@@ -180,24 +184,26 @@ const Home = () => {
     setActiveMenu(null);
   };
 
-  const handleCreateFolder = async () => {
-    const folderName = prompt("Enter folder name:");
-    if (!folderName) return;
-
-    try {
-      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-      const { data } = await axios.post(`${bUrl}/api/storage/folder`, {
-         userId: currentUser.uid,
-         originalName: folderName,
-         parentId: currentFolder ? currentFolder._id : null
-      });
-      if (data.success) {
-        setUserFiles(prev => [data.folder, ...prev]);
-      }
-    } catch (err) {
-      alert("Failed to create folder.");
-    }
+  const handleCreateFolder = () => {
+    showPrompt("Create Secure Directory", "Enter a unique name for your encrypted binary container.", async (name) => {
+        if (!name.trim()) return;
+        try {
+          const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+          const { data } = await axios.post(`${bUrl}/api/storage/folder`, {
+             userId: currentUser.uid,
+             originalName: name,
+             parentId: currentFolder ? currentFolder._id : null
+          });
+          if (data.success) {
+            setUserFiles(prev => [data.folder, ...prev]);
+            closeDialog();
+          }
+        } catch (error) {
+          showAlert("Vault Error", "Failed to initialize directory container.");
+        }
+    });
   };
+
 
   const navigateToFolder = (folder) => {
     if (folder === null) {
@@ -225,7 +231,7 @@ const Home = () => {
       if (!file) return;
 
       if (!vaultKey || vaultKey === 'Loading...') {
-          alert('Error: Cryptographic Vault Key is not ready. Please try again.');
+          showAlert("Security Constraint", "Cryptographic Vault Key is not ready. Please try again in 2 seconds.");
           return;
       }
 
@@ -256,11 +262,11 @@ const Home = () => {
               setUserFiles(prev => [data.file, ...prev]);
               setTotalStorageUsed(prev => prev + data.file.fileSize);
           } else {
-              alert('Upload gateway declined the transmission.');
+              showAlert("Transmission Denied", "The upload gateway declined the encrypted transmission.");
           }
       } catch (err) {
           console.error("Upload Error", err);
-          alert('Critical Error during encryption or transmission.');
+          showAlert("Crypto Engine Failure", "Critical Error during AES-GCM encryption or transmission.");
       } finally {
           setIsUploading(false);
           if (fileInputRef.current) fileInputRef.current.value = null;
@@ -301,7 +307,7 @@ const Home = () => {
         setViewingFile({ meta: file, url });
     } catch (error) {
         console.error("Retrieval Error", error);
-        alert("Failed to decrypt or retrieve file.");
+        showAlert("Decryption Failure", "Failed to restore secure binary from vault.");
     } finally {
         setPageLoading(false);
         setLoaderMessage("Accessing Secure Vault...");
@@ -336,24 +342,31 @@ const Home = () => {
      generateThumbnails();
   }, [userFiles, vaultKey]);
 
-  const handleDelete = async (e, fileId) => {
+  const handleDelete = (e, fileId) => {
     e.stopPropagation();
-    if (!window.confirm("Are you sure you want to decommission this file from your vault?")) return;
-    
-    try {
-      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-      const { data } = await axios.delete(`${bUrl}/api/storage/${fileId}`);
-      if (data.success) {
-        const fileToRemove = userFiles.find(f => f._id === fileId);
-        setUserFiles(prev => prev.filter(f => f._id !== fileId));
-        if (fileToRemove) setTotalStorageUsed(prev => prev - fileToRemove.fileSize);
-        if (blobCache[fileId]) URL.revokeObjectURL(blobCache[fileId]);
-      }
-    } catch (err) {
-      alert("Failed to decommission file.");
-    }
+    showConfirm(
+        "Decommission Binary?", 
+        "Are you absolutely sure you want to permanently decommission this file? This operation will purge all encrypted fragments from the secure nodes.",
+        async () => {
+            try {
+              const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+              const { data } = await axios.delete(`${bUrl}/api/storage/${fileId}`);
+              if (data.success) {
+                const fileToRemove = userFiles.find(f => f._id === fileId);
+                setUserFiles(prev => prev.filter(f => f._id !== fileId));
+                if (fileToRemove) setTotalStorageUsed(prev => prev - fileToRemove.fileSize);
+                if (blobCache[fileId]) URL.revokeObjectURL(blobCache[fileId]);
+                closeDialog();
+              }
+            } catch (error) {
+              showAlert("Vault Error", "Security Decommissioning failed.");
+            }
+        },
+        true
+    );
   };
-  
+
+
   // Real-Time Storage Calculations Context
   const getPercentage = (used, max) => {
     const val = (used / max) * 100;
@@ -838,7 +851,7 @@ const Home = () => {
                 <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Choose your preferred authentication protocol to initiate a secure parallel session.</p>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                   <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }} onClick={() => { setIsAccountLoading(true); loginWithGoogle().then(() => setShowAccountModal(false)).catch(e => alert(e.message)).finally(() => setIsAccountLoading(false)); }}>
+                   <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }} onClick={() => { setIsAccountLoading(true); loginWithGoogle().then(() => setShowAccountModal(false)).catch(e => showAlert("Identity Error", e.message)).finally(() => setIsAccountLoading(false)); }}>
                       <Globe size={18} /> Sign in with Google
                    </button>
                    <button className="btn-primary" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: '#fff' }} onClick={() => setAccountModalView('login')}>
@@ -868,7 +881,7 @@ const Home = () => {
                        }
                        setIsSwitching(false);
                        setShowAccountModal(false);
-                   } catch (err) { alert(err.message); } finally { setIsAccountLoading(false); }
+                   } catch (err) { showAlert("Identity Error", err.message); } finally { setIsAccountLoading(false); }
                 }}>
                    <div className="input-group">
                       <label>Email Address</label>
@@ -1071,6 +1084,7 @@ const Home = () => {
       )}
 
       </main>
+
 
       {pageLoading && <Loader message={loaderMessage} />}
     </div>

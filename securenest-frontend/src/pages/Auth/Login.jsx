@@ -4,12 +4,14 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import AnimatedBackground from '../../components/AnimatedBackground';
 import { Eye, EyeOff } from 'lucide-react'; // Assuming lucide-react for icons
+import { useDialog } from '../../context/DialogContext';
 
 const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, loginWithGoogle } = useAuth();
+  const { showAlert } = useDialog();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -18,7 +20,7 @@ const Login = () => {
       await login(email, password);
       navigate('/home');
     } catch (error) {
-      alert("Failed to sign in. Check your credentials.");
+      showAlert("Authentication Error", "Failed to sign in. Please verify your master credentials.");
     }
   };
 
@@ -40,9 +42,11 @@ const Login = () => {
     } catch (error) {
       console.error(error);
       const isDomainError = error.message.includes('unauthorized-domain');
-      alert(isDomainError 
-        ? "CRITICAL: Current Domain not authorized in Firebase! Please add your Vercel URL to the Firebase Console Authorized Domains list."
-        : `Access Failed: ${error.message}`
+      showAlert(
+        isDomainError ? "Security Restriction" : "Gateway Error",
+        isDomainError 
+          ? "CRITICAL: Current Domain not authorized in Firebase! Please add your Vercel URL to the Firebase Console Authorized Domains list."
+          : `Access Failed: ${error.message}`
       );
     }
   };
