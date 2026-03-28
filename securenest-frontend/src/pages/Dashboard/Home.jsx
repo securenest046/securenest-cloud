@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, ChevronDown, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus } from 'lucide-react';
+import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, ChevronDown, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus, Lock, ShieldCheck } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 import Loader from '../../components/Loader';
 import { useDialog } from '../../context/DialogContext';
+import { triggerPlatformAuth } from '../../utils/localAuth';
 
 const Home = () => {
-  const { currentUser, logout, login, signup, loginWithGoogle, isSwitching, setIsSwitching } = useAuth();
+  const { currentUser, logout, login, signup, loginWithGoogle, isSwitching, setIsSwitching, reauthenticate } = useAuth();
   const navigate = useNavigate();
 
   const [showAccountModal, setShowAccountModal] = useState(false);
@@ -32,6 +33,12 @@ const Home = () => {
   const [pageLoading, setPageLoading] = useState(true);
   const [loaderMessage, setLoaderMessage] = useState("Accessing Secure Vault...");
 
+  // Biometric Gateway & Manual Fallback States 🛡️
+  const [showKeyAuthModal, setShowKeyAuthModal] = useState({ active: false, action: null });
+  const [manualPass, setManualPass] = useState("");
+  const [isAuthVerifying, setIsAuthVerifying] = useState(false);
+  const [authError, setAuthError] = useState("");
+
   const [recentAccounts, setRecentAccounts] = useState(() => {
     const saved = localStorage.getItem('recentAccounts');
     return saved ? JSON.parse(saved) : [];
@@ -52,6 +59,44 @@ const Home = () => {
       });
     }
   }, [currentUser]);
+
+  const handleVaultKeyAction = async (action) => {
+    try {
+      await triggerPlatformAuth();
+      if (action === 'toggle') setShowVaultKey(!showVaultKey);
+      if (action === 'copy') {
+        navigator.clipboard.writeText(vaultKey);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      if (err.message === 'REAUTH_CANCELLED' || err.name === 'NotAllowedError') return;
+      // Fallback to manual password verification for unsupported/failed sessions
+      setShowKeyAuthModal({ active: true, action });
+    }
+  };
+
+  const verifyManualAuth = async (e) => {
+    e.preventDefault();
+    setIsAuthVerifying(true);
+    setAuthError("");
+    try {
+      await reauthenticate(manualPass);
+      if (showKeyAuthModal.action === 'toggle') setShowVaultKey(!showVaultKey);
+      if (showKeyAuthModal.action === 'copy') {
+        navigator.clipboard.writeText(vaultKey);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+      setShowKeyAuthModal({ active: false, action: null });
+      setManualPass("");
+      setAuthError("");
+    } catch (err) {
+      setAuthError("Identity verification failed. Please check your password.");
+    } finally {
+      setIsAuthVerifying(false);
+    }
+  };
 
   const handleRemoveRecent = (e, uid) => {
     e.stopPropagation();
@@ -709,12 +754,12 @@ const Home = () => {
                   </div>
                   <div className="vault-key-action-group">
                     <button 
-                      onClick={() => setShowVaultKey(!showVaultKey)} 
+                      onClick={() => handleVaultKeyAction('toggle')} 
                       style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     >
                       {showVaultKey ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
-                    <button onClick={handleCopy} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                    <button onClick={() => handleVaultKeyAction('copy')} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
                       {copied ? <Check size={16} /> : <Copy size={16} />}
                     </button>
                   </div>
@@ -1523,6 +1568,56 @@ const Home = () => {
 
 
       {pageLoading && <Loader message={loaderMessage} />}
+
+      {/* 🧬 Biometric Gateway & Identity Verification Fallout Matrix */}
+      {showKeyAuthModal.active && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, animation: 'fadeIn 0.3s ease-out' }}>
+          <div className="glass-panel" style={{ width: '400px', padding: '40px', textAlign: 'center', border: '1px solid var(--accent-primary)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', background: 'rgba(15, 23, 42, 0.98)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', color: 'var(--accent-primary)' }}>
+              <Lock size={32} />
+            </div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '12px' }}>Identity Verification</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
+              For your protection, please verify your SecureVault password to access high-level cryptographic identities.
+            </p>
+            
+            <form onSubmit={verifyManualAuth}>
+              <div className="input-group" style={{ marginBottom: '20px' }}>
+                <input 
+                  type="password" 
+                  className="input-field" 
+                  placeholder="Enter Account Password"
+                  value={manualPass}
+                  onChange={(e) => setManualPass(e.target.value)}
+                  autoFocus
+                  required
+                  style={{ textAlign: 'center', letterSpacing: '2px' }}
+                />
+              </div>
+              
+              {authError && <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '16px', background: 'rgba(239,68,68,0.1)', padding: '8px', borderRadius: '8px' }}>{authError}</p>}
+              
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowKeyAuthModal({ active: false, action: null }); setManualPass(""); setAuthError(""); }}
+                  className="btn-primary" 
+                  style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn-primary" 
+                  disabled={isAuthVerifying}
+                >
+                  {isAuthVerifying ? 'Verifying...' : 'Verify Session'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -58,6 +58,13 @@ export const AuthProvider = ({ children }) => {
     return updatePassword(user, newPassword);
   };
 
+  const reauthenticate = async (password) => {
+    const user = auth.currentUser;
+    if (!user) throw new Error("No authenticated user found.");
+    const credential = EmailAuthProvider.credential(user.email, password);
+    return reauthenticateWithCredential(user, credential);
+  };
+
   const updateUserProfile = async (data) => {
     const user = auth.currentUser;
     if (!user) throw new Error("No authenticated user found.");
@@ -80,6 +87,7 @@ export const AuthProvider = ({ children }) => {
     logout,
     resetPassword,
     loginWithGoogle,
+    reauthenticate,
     updateUserPassword,
     updateUserProfile,
     isSwitching,

@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import { Key, ArrowLeft, Save, Copy, Check, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, User, Mail, ShieldAlert, Key, Eye, EyeOff, Copy, Check, Save, Lock, ShieldCheck } from 'lucide-react';
 import axios from 'axios';
 import Loader from '../../components/Loader';
+import { triggerPlatformAuth } from '../../utils/localAuth';
 import { useDialog } from '../../context/DialogContext';
 
 const Settings = () => {
-  const { currentUser, updateUserPassword, updateUserProfile } = useAuth();
+  const { currentUser, updateUserPassword, updateUserProfile, reauthenticate } = useAuth();
   const { showAlert } = useDialog();
   const navigate = useNavigate();
   
@@ -25,6 +26,12 @@ const Settings = () => {
     newPassword: '',
     confirmNewPassword: ''
   });
+
+  // Biometric Gateway & Manual Fallback States 🛡️
+  const [showKeyAuthModal, setShowKeyAuthModal] = useState({ active: false, action: null });
+  const [manualPass, setManualPass] = useState("");
+  const [isAuthVerifying, setIsAuthVerifying] = useState(false);
+  const [authError, setAuthError] = useState("");
 
   const [showPasswords, setShowPasswords] = useState({
       old: false,
@@ -149,6 +156,43 @@ const Settings = () => {
         showAlert("Sync Error", `Failed to update vault settings: ${detail}\n\nHINT: Re-authentication may have failed if your current password was incorrect.`);
     } finally {
         setIsSaving(false);
+    }
+  };
+
+  const handleVaultKeyAction = async (action) => {
+    try {
+      await triggerPlatformAuth();
+      if (action === 'toggle') setShowVaultKey(!showVaultKey);
+      if (action === 'copy') {
+        navigator.clipboard.writeText(vaultKey);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch (err) {
+      if (err.message === 'REAUTH_CANCELLED' || err.name === 'NotAllowedError') return;
+      setShowKeyAuthModal({ active: true, action });
+    }
+  };
+
+  const verifyManualAuth = async (e) => {
+    e.preventDefault();
+    setIsAuthVerifying(true);
+    setAuthError("");
+    try {
+      await reauthenticate(manualPass);
+      if (showKeyAuthModal.action === 'toggle') setShowVaultKey(!showVaultKey);
+      if (showKeyAuthModal.action === 'copy') {
+        navigator.clipboard.writeText(vaultKey);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+      setShowKeyAuthModal({ active: false, action: null });
+      setManualPass("");
+      setAuthError("");
+    } catch (err) {
+      setAuthError("Identity verification failed. Please check your password.");
+    } finally {
+      setIsAuthVerifying(false);
     }
   };
 
@@ -296,14 +340,14 @@ const Settings = () => {
                   <div className="vault-key-action-group">
                     <button 
                       type="button" 
-                      onClick={() => setShowVaultKey(!showVaultKey)}
+                      onClick={() => handleVaultKeyAction('toggle')}
                       style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     >
                       {showVaultKey ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
                     <button 
                       type="button" 
-                      onClick={handleCopy} 
+                      onClick={() => handleVaultKeyAction('copy')} 
                       style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                     >
                       {copied ? <Check size={20} /> : <Copy size={20} />}
@@ -321,6 +365,56 @@ const Settings = () => {
       </div>
 
       {pageLoading && <Loader message="Accessing Identity Settings..." />}
+
+      {/* 🧬 Biometric Gateway & Identity Verification Fallout Matrix */}
+      {showKeyAuthModal.active && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, animation: 'fadeIn 0.3s ease-out' }}>
+          <div className="glass-panel" style={{ width: '400px', padding: '40px', textAlign: 'center', border: '1px solid var(--accent-primary)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', background: 'rgba(15, 23, 42, 0.95)' }}>
+            <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', color: 'var(--accent-primary)' }}>
+              <Lock size={32} />
+            </div>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '12px' }}>Identity Verification</h2>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
+              For your protection, please verify your SecureVault password to access high-level cryptographic identities.
+            </p>
+            
+            <form onSubmit={verifyManualAuth}>
+              <div className="input-group" style={{ marginBottom: '20px' }}>
+                <input 
+                  type="password" 
+                  className="input-field" 
+                  placeholder="Enter Account Password"
+                  value={manualPass}
+                  onChange={(e) => setManualPass(e.target.value)}
+                  autoFocus
+                  required
+                  style={{ textAlign: 'center', letterSpacing: '2px' }}
+                />
+              </div>
+              
+              {authError && <p style={{ color: 'var(--danger)', fontSize: '0.8rem', marginBottom: '16px', background: 'rgba(239,68,68,0.1)', padding: '8px', borderRadius: '8px' }}>{authError}</p>}
+              
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <button 
+                  type="button" 
+                  onClick={() => { setShowKeyAuthModal({ active: false, action: null }); setManualPass(""); setAuthError(""); }}
+                  className="btn-primary" 
+                  style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className="btn-primary" 
+                  disabled={isAuthVerifying}
+                >
+                  {isAuthVerifying ? 'Verifying...' : 'Verify Session'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
