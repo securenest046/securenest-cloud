@@ -10,20 +10,21 @@ const ForgotPassword = () => {
     e.preventDefault();
     // The backend will catch the user-id, generate a unique reset link, and send it.
     setSubmitted(true);
+    setIsSending(false);
   };
 
   return (
     <div className="auth-container">
       <div className="glass-panel auth-card" style={{ maxWidth: '420px' }}>
         <div className="auth-header" style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '1.8rem' }}>Reset Password</h1>
-          <p style={{color: 'var(--text-muted)'}}>Enter your User ID to receive a secure reset link.</p>
+          <h1 style={{ fontSize: '2.2rem', fontWeight: '700', marginBottom: '12px' }}>Reset Password</h1>
+          <p style={{ color: 'var(--text-muted)' }}>Enter your email to receive a password reset link.</p>
         </div>
         
         {!submitted ? (
           <form onSubmit={handleReset}>
             <div className="input-group" style={{ marginBottom: '24px' }}>
-              <label>User ID / Email</label>
+              <label>Email Address</label>
               <input 
                 type="text" 
                 className="input-field" 
@@ -34,8 +35,8 @@ const ForgotPassword = () => {
               />
             </div>
 
-            <button type="submit" className="btn-primary" style={{ marginBottom: '16px' }}>
-              Send Reset Link
+            <button type="submit" disabled={isSending} className="btn-primary" style={{ marginTop: '12px', opacity: isSending ? 0.7 : 1, cursor: isSending ? 'not-allowed' : 'pointer' }}>
+              {isSending ? 'Sending Reset Link...' : 'Send Reset Link'}
             </button>
           </form>
         ) : (
@@ -44,7 +45,7 @@ const ForgotPassword = () => {
               <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="var(--success)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
             </div>
             <h3 style={{ marginBottom: '8px' }}>Reset Link Sent!</h3>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>If an account exists for that ID, a unique reset link has been dispatched.</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>If an account exists for that email, a reset link has been sent.</p>
           </div>
         )}
         

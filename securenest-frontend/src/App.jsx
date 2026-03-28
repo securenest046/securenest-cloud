@@ -10,7 +10,7 @@ import Loader from './components/Loader';
 
 const PrivateRoute = ({ children }) => {
   const { currentUser, loading, isSwitching } = useAuth();
-  if (loading) return <Loader message="Verifying Identity..." />; 
+  if (loading) return <Loader message="Verifying..." />; 
   return (currentUser || isSwitching) ? children : <Navigate to="/login" />;
 };
 

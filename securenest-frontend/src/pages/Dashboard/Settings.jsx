@@ -12,7 +12,7 @@ const Settings = () => {
   const { showAlert, showToast } = useDialog();
   const navigate = useNavigate();
   
-  const [vaultKey, setVaultKey] = useState("Fetching unique vault hardware key...");
+  const [vaultKey, setVaultKey] = useState("Loading...");
   const [showVaultKey, setShowVaultKey] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
@@ -92,11 +92,13 @@ const Settings = () => {
       setEmailVerification({...emailVerification, loading: true});
       try {
           const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-          await axios.post(`${bUrl}/api/auth/verify-email-request`, { email: currentUser.email });
-          setEmailVerification({...emailVerification, state: 'pending', loading: false});
-          showToast("success", "Verification OTP sent to your email. Check your primary inbox.");
+          const response = await axios.post(`${bUrl}/api/auth/verify-email-request`, { email: currentUser.email });
+          if (response.data.success) {
+            showToast("success", "Email verification sent. Please check your inbox.");
+            setEmailVerification({...emailVerification, state: 'pending', loading: false});
+          }
       } catch (error) {
-          showToast("error", "Failed to initiate verification transmission. Please try again.");
+          showToast("error", "Failed to send verification email. Please try again.");
           setEmailVerification({...emailVerification, loading: false});
       }
   };
@@ -110,9 +112,9 @@ const Settings = () => {
               otp: emailVerification.otp
           });
           setEmailVerification({...emailVerification, state: 'verified', loading: false});
-          showToast("success", "Email address verified successfully across all secure nodes.");
+          showToast("success", "Email address verified successfully.");
       } catch (error) {
-          showToast("error", "Invalid OTP security code. Please check your credentials.");
+          showToast("error", "Invalid verification code. Please try again.");
           setEmailVerification({...emailVerification, loading: false});
       }
   };
@@ -121,10 +123,8 @@ const Settings = () => {
     e.preventDefault();
     setIsSaving(true);
     try {
-        // Profile Sync
         await updateUserProfile(formData.fullName);
         
-        // Password Change
         if (isChangingPassword && formData.newPassword) {
             if (formData.newPassword !== formData.confirmNewPassword) {
                 throw new Error("New passwords do not match.");
@@ -132,7 +132,6 @@ const Settings = () => {
             await updateUserPassword(formData.oldPassword, formData.newPassword);
         }
 
-        // Backend Final Sync
         const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
         await axios.post(`${bUrl}/api/auth/sync`, {
             userId: currentUser.uid,
@@ -141,7 +140,7 @@ const Settings = () => {
             emailVerified: emailVerification.state === 'verified'
         });
 
-        showToast("success", "Dashboard settings synchronized successfully!");
+        showToast("success", "Settings saved successfully.");
         setTimeout(() => navigate('/home'), 1500);
         
         setIsChangingPassword(false);
@@ -154,7 +153,7 @@ const Settings = () => {
     } catch (error) {
         console.error("Settings Update Failed:", error);
         const detail = error.response?.data?.detail || error.message;
-        showToast("error", `Failed to update vault settings: ${detail}`);
+        showToast("error", `Failed to update settings: ${detail}`);
     } finally {
         setIsSaving(false);
     }
@@ -191,7 +190,7 @@ const Settings = () => {
       setManualPass("");
       setAuthError("");
     } catch (err) {
-      setAuthError("Identity verification failed. Please check your password.");
+      setAuthError("Verification failed. Please check your password.");
     } finally {
       setIsAuthVerifying(false);
     }
@@ -200,13 +199,15 @@ const Settings = () => {
   return (
     <div style={{ minHeight: '100vh', padding: '40px', background: 'var(--bg-dark)' }}>
       <button onClick={() => navigate('/home')} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '32px', fontSize: '1.1rem', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#fff'} onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
-         <ArrowLeft size={20} /> Back to Dashboard
+         <ArrowLeft size={20} /> Back to Vault
       </button>
 
       <div className="glass-panel" style={{ maxWidth: '850px', margin: '0 auto', padding: '48px' }}>
          <div style={{ borderBottom: '1px solid var(--border-color)', paddingBottom: '20px', marginBottom: '32px' }}>
-            <h1 style={{ fontSize: '2.2rem', fontWeight: '700', marginBottom: '8px' }}>Account Settings</h1>
-            <p style={{ color: 'var(--text-muted)' }}>Manage your identity, security, and encryption preferences.</p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              <h1 style={{ fontSize: '2.5rem', fontWeight: '800', margin: 0 }}>Account Settings</h1>
+              <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage your security and account details.</p>
+            </div>
          </div>
 
          <form onSubmit={handleSave}>
@@ -241,9 +242,9 @@ const Settings = () => {
             <div style={{ marginBottom: '40px' }}>
                {!isChangingPassword ? (
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border-color)' }}>
-                     <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-                        <span style={{ fontSize: '1rem', fontWeight: '500' }}>Password</span>
-                        <span style={{ color: 'var(--text-muted)', letterSpacing: '4px' }}>••••••••</span>
+                     <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <label style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Universal Encryption Key</label>
+                        <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', margin: '4px 0 12px 0' }}>This unique key is required to recover your data if you lose access. <span style={{ color: 'var(--danger)', fontWeight: '600' }}>Never share this with anyone.</span></p>
                      </div>
                      <button type="button" onClick={() => setIsChangingPassword(true)} style={{ background: 'transparent', border: '1px solid var(--accent-primary)', color: 'var(--accent-primary)', padding: '8px 20px', borderRadius: '8px', cursor: 'pointer', fontWeight: '600', transition: 'all 0.2s' }} onMouseOver={(e) => { e.currentTarget.style.background = 'var(--accent-primary)'; e.currentTarget.style.color = '#000'; }} onMouseOut={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--accent-primary)'; }}>
                         Change Password
@@ -327,14 +328,17 @@ const Settings = () => {
                )}
             </div>
 
-            <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '20px', color: 'var(--accent-primary)' }}>Cryptographic Identity</h3>
-            <div style={{ background: 'rgba(0,0,0,0.3)', border: '1px solid rgba(16, 185, 129, 0.2)', padding: '24px', borderRadius: '12px', marginBottom: '40px' }}>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                  <Key size={24} color="var(--success)" />
-                  <span style={{ fontWeight: '600', fontSize: '1.1rem' }}>Master Encryption Key</span>
-               </div>
-               <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '20px', lineHeight: '1.5' }}>This 40-character key is used to execute mathematical, military-grade client-side encryption on your payloads locally before they reach the backend. It auto-rotates every 30 days securely.</p>
-                <div className="vault-key-row" style={{ height: '54px' }}>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: '600', marginBottom: '20px', color: 'var(--accent-primary)' }}>Encryption Key</h3>
+                <div style={{ marginTop: '24px', padding: '16px', borderRadius: '12px', background: 'rgba(59, 130, 246, 0.05)', border: '1px solid rgba(59, 130, 246, 0.1)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '8px' }}>
+                    <ShieldCheck size={20} color="var(--accent-primary)" />
+                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>End-to-End Encryption</h4>
+                  </div>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)', lineHeight: '1.5' }}>
+                    Your data is encrypted using AES-256 before it ever leaves your device. Only you hold the keys to unlock it.
+                  </p>
+                </div>
+                <div className="vault-key-row" style={{ height: '54px', marginTop: '24px' }}>
                   <div className="vault-key-display" style={{ letterSpacing: showVaultKey ? '1px' : '4px', textAlign: 'center' }}>
                     {showVaultKey ? vaultKey : '••••••••••••••••••••••••'}
                   </div>
@@ -355,36 +359,32 @@ const Settings = () => {
                     </button>
                   </div>
                 </div>
-            </div>
 
             <div style={{ display: 'flex', justifyContent: 'flex-end', paddingTop: '24px', borderTop: '1px solid var(--border-color)' }}>
                <button type="submit" className="btn-primary" disabled={isSaving} style={{ width: 'auto', display: 'flex', alignItems: 'center', gap: '8px', padding: '14px 32px', opacity: isSaving ? 0.7 : 1, cursor: isSaving ? 'not-allowed' : 'pointer' }}>
-                  {isSaving ? 'Synchronizing Vault...' : <><Save size={18} /> Save Changes</>}
+                  {isSaving ? 'Saving...' : <><Save size={18} /> Save Changes</>}
                </button>
             </div>
          </form>
       </div>
 
-      {pageLoading && <Loader message="Accessing Identity Settings..." />}
+      {pageLoading && <Loader message="Loading settings..." />}
 
-      {/* 🧬 Biometric Gateway & Identity Verification Fallout Matrix */}
       {showKeyAuthModal.active && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(12px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 20000, animation: 'fadeIn 0.3s ease-out' }}>
           <div className="glass-panel" style={{ width: '400px', padding: '40px', textAlign: 'center', border: '1px solid var(--accent-primary)', boxShadow: '0 25px 50px rgba(0,0,0,0.5)', background: 'rgba(15, 23, 42, 0.95)' }}>
             <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', color: 'var(--accent-primary)' }}>
               <Lock size={32} />
             </div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '12px' }}>Identity Verification</h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
-              For your protection, please verify your SecureVault password to access high-level cryptographic identities.
-            </p>
+            <h3 style={{ fontSize: '1.4rem', fontWeight: '700', marginBottom: '8px' }}>Verify Password</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '32px' }}>Please enter your account password to continue.</p>
             
             <form onSubmit={verifyManualAuth}>
               <div className="input-group" style={{ marginBottom: '20px' }}>
                 <input 
                   type="password" 
                   className="input-field" 
-                  placeholder="Enter Account Password"
+                  placeholder="Password"
                   value={manualPass}
                   onChange={(e) => setManualPass(e.target.value)}
                   autoFocus

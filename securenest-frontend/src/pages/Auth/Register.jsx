@@ -54,20 +54,20 @@ const Register = () => {
       const userCredentials = await loginWithGoogle();
       if (!userCredentials || !userCredentials.user) throw new Error("Google Authentication cancelled or failed.");
 
-      console.log("Google Auth Success, syncing with SecureNest Backend...");
+      console.log("Google Auth Success, syncing with SecureVault...");
       
       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
       await axios.post(`${bUrl}/api/auth/sync`, {
           userId: userCredentials.user.uid,
           email: userCredentials.user.email,
-          fullName: userCredentials.user.displayName || userCredentials.user.email?.split('@')[0] || 'Authenticated User'
+          fullName: userCredentials.user.displayName || userCredentials.user.email?.split('@')[0] || 'User'
       });
 
       navigate('/home');
     } catch (error) {
       console.error("Google Auth Flow Error:", error);
       const detail = error.response?.data?.detail || error.message;
-      showToast("error", `Google Access Denied: ${detail}`);
+      showToast("error", `Google Login failed: ${detail}`);
     } finally {
       setIsSending(false);
     }
@@ -89,14 +89,14 @@ const Register = () => {
             userId: userCredentials.user.uid,
             email: formData.email,
             fullName: formData.fullName
-        }).catch(syncErr => console.error("Identity sync deferred:", syncErr));
+        }).catch(syncErr => console.error("Account sync deferred:", syncErr));
         
         // 3. Direct Entry
         navigate('/home');
     } catch (err) {
        console.error(err);
        const detail = err.response?.data?.detail || err.message;
-       showToast("error", `Security Sync Failed: ${detail}`);
+       showToast("error", `Sign up failed: ${detail}`);
     } finally {
        setIsSending(false);
     }
@@ -112,18 +112,18 @@ const Register = () => {
   return (
     <div className="auth-container">
       <AnimatedBackground />
-      {isSending && <Loader message="Transmitting Encryption Bridge Keys..." />}
+      {isSending && <Loader message="Creating your account..." />}
       <div className="glass-panel auth-card slide-in-right" style={{ maxWidth: '540px', padding: '40px' }}>
         <div className="auth-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '24px' }}>
           <img src="/logo.png" alt="SecureNest" style={{ width: '64px', height: '64px', objectFit: 'contain', marginBottom: '12px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }} />
           <h1 style={{ fontSize: '1.8rem', margin: 0, paddingBottom: '8px' }}>Create Account</h1>
-          <p style={{color: 'var(--text-muted)'}}>Join SecureNest for your 50GB vault</p>
+          <p style={{ color: 'var(--text-muted)' }}>Join SecureVault and start securing your files.</p>
         </div>
         
         <form onSubmit={handleRegister}>
-          <div className="input-group" style={{ marginBottom: '16px' }}>
+          <div className="input-group">
             <label>Full Name</label>
-            <input type="text" name="fullName" className="input-field" onChange={handleChange} required />
+            <input type="text" required className="input-field" value={formData.fullName} onChange={e => setFormData({...formData, fullName: e.target.value})} placeholder="Ex: John Doe" />
           </div>
           
           <div className="input-group" style={{ marginBottom: '16px' }}>
@@ -132,7 +132,7 @@ const Register = () => {
           </div>
 
           <div className="input-group" style={{ marginBottom: '24px' }}>
-            <label>Master Password</label>
+            <label>Password</label>
             <div style={{ position: 'relative' }}>
               <input 
                 type={showPassword ? "text" : "password"} 
@@ -161,8 +161,8 @@ const Register = () => {
             </div>
           )}
 
-          <button type="submit" className="btn-primary" disabled={!Object.values(pwdCriteria).every(Boolean) || isSending} style={{ opacity: Object.values(pwdCriteria).every(Boolean) && !isSending ? 1 : 0.5, cursor: Object.values(pwdCriteria).every(Boolean) && !isSending ? 'pointer' : 'not-allowed' }}>
-            {isSending ? 'Creating Secure Vault...' : 'Create Account'}
+          <button type="submit" disabled={isSending} className="btn-primary" style={{ marginTop: '12px', opacity: isSending ? 0.7 : 1, cursor: isSending ? 'not-allowed' : 'pointer' }}>
+            {isSending ? 'Creating Account...' : 'Sign Up'}
           </button>
           
           <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: 'var(--text-muted)' }}>
@@ -183,7 +183,7 @@ const Register = () => {
         </form>
         
         <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text-muted)', fontSize: '0.95rem' }}>
-          Already have a vault? <span className="link-text" onClick={() => navigate('/login')}>Login</span>
+          Already have an account? <span className="link-text" onClick={() => navigate('/login')}>Login</span>
         </p>
       </div>
     </div>

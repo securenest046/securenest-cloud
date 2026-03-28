@@ -31,9 +31,9 @@ const Home = () => {
   const [uploadQueue, setUploadQueue] = useState([]);
   const [isUploadMinimized, setIsUploadMinimized] = useState(true);
   const [pageLoading, setPageLoading] = useState(true);
-  const [loaderMessage, setLoaderMessage] = useState("Accessing Secure Vault...");
+  const [loaderMessage, setLoaderMessage] = useState("Loading...");
 
-  // Biometric Gateway & Manual Fallback States 🛡️
+  // Security States 🛡️
   const [showKeyAuthModal, setShowKeyAuthModal] = useState({ active: false, action: null });
   const [manualPass, setManualPass] = useState("");
   const [isAuthVerifying, setIsAuthVerifying] = useState(false);
@@ -78,20 +78,18 @@ const Home = () => {
   };
 
   /**
-   * Hierarchical Identity Relocation Hub 🛡️📂
-   */
-  const handleMoveIdentities = async (targetFolderId, targetFolderName = "Selected Identity") => {
+  const handleMoveIdentities = async (targetFolderId, targetFolderName = "Selected Item") => {
     const idsToMove = selectedIds.length > 0 ? selectedIds : (draggedId ? [draggedId] : []);
     if (idsToMove.length === 0) return;
     
     // Prevent moving a folder into itself
     if (idsToMove.includes(targetFolderId)) {
-        showToast("error", "Self-nesting is mathematically impossible.");
+        showToast("error", "Cannot move a folder into itself.");
         setDraggedId(null);
         return;
     }
 
-    setLoaderMessage(`Relocating ${idsToMove.length} identities to ${targetFolderName}...`);
+    setLoaderMessage(`Moving ${idsToMove.length} items to ${targetFolderName}...`);
     setIsUploading(true);
     try {
         const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -103,25 +101,25 @@ const Home = () => {
 
         if (data.success) {
             setUserFiles(prev => prev.filter(f => !idsToMove.includes(f._id)));
-            showToast("success", `Successfully relocated ${idsToMove.length} identities.`);
+            showToast("success", `Successfully moved ${idsToMove.length} items.`);
             setSelectedIds([]);
             setDraggedId(null);
         }
     } catch (err) {
         console.error("Move Error:", err);
-        showToast("error", "Failed to relocate identities across vault registry.");
+        showToast("error", "Failed to move items. Please try again.");
         setDraggedId(null);
     } finally {
         setIsUploading(false);
-        setLoaderMessage("Accessing Secure Vault...");
+        setLoaderMessage("Loading your vault...");
     }
   };
 
   const handleMoveToNewFolder = async () => {
-    showPrompt("Initialize Destination", "Enter the naming protocol for relocation:", async (folderName) => {
+    showPrompt("New Folder", "Enter a name for the folder:", async (folderName) => {
       if (!folderName) return;
 
-      setLoaderMessage("Constructing Destination Registry...");
+      setLoaderMessage("Creating folder...");
       setIsUploading(true);
       try {
           const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -142,10 +140,10 @@ const Home = () => {
           }
       } catch (err) {
           console.error("New Folder Move Error:", err);
-          showToast("error", "Failed to initialize the destination registry.");
+          showToast("error", "Failed to create the folder.");
       } finally {
           setIsUploading(false);
-          setLoaderMessage("Accessing Secure Vault...");
+          setLoaderMessage("Accessing your vault...");
       }
     });
   };
@@ -183,7 +181,7 @@ const Home = () => {
       setManualPass("");
       setAuthError("");
     } catch (err) {
-      setAuthError("Identity verification failed. Please check your password.");
+      setAuthError("Verification failed. Please check your password.");
     } finally {
       setIsAuthVerifying(false);
     }
@@ -313,10 +311,10 @@ const Home = () => {
       if (data.success) {
         setUserFiles(prev => prev.map(f => f._id === fileId ? { ...f, originalName: renameValue } : f));
         setRenamingId(null);
-        showToast("success", "Identity renamed successfully.");
+        showToast("success", "File renamed successfully.");
       }
     } catch (err) {
-      showToast("error", "Security Rename failed.");
+      showToast("error", "Rename failed.");
     }
   };
 
@@ -327,7 +325,7 @@ const Home = () => {
   };
 
   const handleCreateFolder = () => {
-    showPrompt("Create Secure Directory", "Enter a unique name for your encrypted binary container.", async (name) => {
+    showPrompt("Create Folder", "Enter a name for the new folder.", async (name) => {
         if (!name.trim()) return;
         try {
           const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -339,10 +337,10 @@ const Home = () => {
           if (data.success) {
             setUserFiles(prev => [data.folder, ...prev]);
             closeDialog();
-            showToast("success", "Secure directory initialized successfully.");
+            showToast("success", "Folder created successfully.");
           }
         } catch (error) {
-          showToast("error", "Failed to initialize directory container.");
+          showToast("error", "Failed to create folder.");
         }
     });
   };
@@ -380,11 +378,11 @@ const Home = () => {
     if (selectedIds.length === 0) return;
     
     showConfirm(
-      "Purge Identified Identities?", 
-      `Are you sure you want to permanently decommission ${selectedIds.length} items from the vault? This action is irreversible.`, 
+      "Delete Items?", 
+      `Are you sure you want to permanently delete ${selectedIds.length} items? This action is irreversible.`, 
       async () => {
         setPageLoading(true);
-        setLoaderMessage(`Decommissioning ${selectedIds.length} identities...`);
+        setLoaderMessage(`Deleting ${selectedIds.length} items...`);
         try {
           const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
           for (const id of selectedIds) {
@@ -392,13 +390,13 @@ const Home = () => {
           }
           setUserFiles(prev => prev.filter(f => !selectedIds.includes(f._id)));
           setSelectedIds([]);
-          showToast("success", "The selected identities have been decommissioned.");
+          showToast("success", "Items deleted successfully.");
         } catch (error) {
           console.error("Bulk Delete Failure", error);
-          showToast("error", "One or more identities failed to decommission.");
+          showToast("error", "One or more items failed to delete.");
         } finally {
           setPageLoading(false);
-          setLoaderMessage("Accessing Secure Vault...");
+          setLoaderMessage("Accessing your vault...");
         }
       }
     );
@@ -408,7 +406,7 @@ const Home = () => {
     if (selectedIds.length === 0) return;
     
     setPageLoading(true);
-    setLoaderMessage(`Engaging Cryptographic Archive Engine...`);
+    setLoaderMessage(`Preparing download...`);
     
     try {
       const zipJS = await import("@zip.js/zip.js");
@@ -425,7 +423,7 @@ const Home = () => {
         
         // Identity Resolution: Fetch from registry if out of current scope
         if (!item) {
-          setLoaderMessage(`Resolving Remote Identity...`);
+          setLoaderMessage(`Resolving file...`);
           try {
             const metaRes = await axios.get(`${bUrl}/api/storage/metadata/${id}`);
             if (metaRes.data.success) item = metaRes.data.file;
@@ -437,7 +435,7 @@ const Home = () => {
         if (!item) continue;
 
         if (item.isFolder) {
-          setLoaderMessage(`Deep-Scanning Directory: ${item.originalName}...`);
+          setLoaderMessage(`Scanning folder: ${item.originalName}...`);
           try {
             const response = await axios.get(`${bUrl}/api/storage/files/${currentUser.uid}/recursive/${item._id}`);
             if (response.data.success) {
@@ -453,7 +451,7 @@ const Home = () => {
       }
 
       if (allFilesToDownload.length === 0) {
-        throw new Error("No ingestible identities discovered in selection.");
+        throw new Error("No files found in selection.");
       }
 
       for (const file of allFilesToDownload) {
@@ -475,20 +473,20 @@ const Home = () => {
       const url = URL.createObjectURL(zipBlob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `SecureVault_Export_${new Date().getTime()}.zip`;
+      link.download = `Vault_Export_${new Date().getTime()}.zip`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      showToast("success", `Hierarchical archive constructed for ${allFilesToDownload.length} identities.`);
+      showToast("success", `Archive created for ${allFilesToDownload.length} items.`);
       setSelectedIds([]);
     } catch (error) {
       console.error("Bulk Download Failure", error);
-      showToast("error", "Failed to compile cryptographic archive.");
+      showToast("error", "Failed to create archive.");
     } finally {
       setPageLoading(false);
-      setLoaderMessage("Accessing Secure Vault...");
+      setLoaderMessage("Accessing your vault...");
     }
   };
 
@@ -513,12 +511,12 @@ const Home = () => {
     if (files.length === 0) return;
 
     if (!vaultKey || vaultKey === 'Loading...') {
-      showToast("error", "Cryptographic Vault Key is not ready.");
+      showToast("error", "Vault key is not ready.");
       return;
     }
 
     setIsUploading(true);
-    setLoaderMessage("Mapping Recursive Entropy Branch...");
+    setLoaderMessage("Mapping folder structure...");
     
     try {
       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -546,7 +544,7 @@ const Home = () => {
               if (currentParentId === (currentFolder?._id || null)) {
                 setUserFiles(prev => prev.some(f => f._id === data.folder._id) ? prev : [data.folder, ...prev]);
               }
-            } else { throw new Error(`Recursion Failed: ${folderName}`); }
+            } else { throw new Error(`Folder creation failed: ${folderName}`); }
           }
           currentParentId = folderIdMap[currentPath];
         }
@@ -565,10 +563,10 @@ const Home = () => {
       setIsUploadMinimized(false);
     } catch (err) {
       console.error("Hierarchy Ingestion Error", err);
-      showToast("error", "Failed to reconstruct the local directory tree.");
+      showToast("error", "Failed to process folder structure.");
     } finally {
       setIsUploading(false);
-      setLoaderMessage("Accessing Secure Vault...");
+      setLoaderMessage("Accessing your vault...");
       if (folderInputRef.current) folderInputRef.current.value = null;
     }
   };
@@ -606,12 +604,12 @@ const Home = () => {
 
   const processDroppedEntries = async (entries) => {
     if (!vaultKey || vaultKey === 'Loading...') {
-      showToast("error", "Cryptographic Vault Key is not ready.");
+      showToast("error", "Vault key is not ready.");
       return;
     }
 
     setIsUploading(true);
-    setLoaderMessage("Ingesting Platform Identities...");
+    setLoaderMessage("Processing files...");
     const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
     const folderIdMap = { "": currentFolder?._id || null };
     const newQueueItems = [];
@@ -674,12 +672,12 @@ const Home = () => {
       }
       setUploadQueue(prev => [...prev, ...newQueueItems]);
       setIsUploadMinimized(false);
-      showToast("success", `Ingesting ${newQueueItems.length} new identities into the vault...`);
+      showToast("success", `Adding ${newQueueItems.length} items to the vault...`);
     } catch (err) {
-      showToast("error", "Failed to resolve dropped directory structure.");
+      showToast("error", "Failed to process dropped items.");
     } finally {
       setIsUploading(false);
-      setLoaderMessage("Accessing Secure Vault...");
+      setLoaderMessage("Accessing your vault...");
     }
   };
 
@@ -769,10 +767,10 @@ const Home = () => {
         setViewingFile({ meta: file, url });
     } catch (error) {
         console.error("Retrieval Error", error);
-        showToast("error", "Decryption Failure: Failed to restore secure binary.");
+        showToast("error", "Decryption failed.");
     } finally {
         setPageLoading(false);
-        setLoaderMessage("Accessing Secure Vault...");
+        setLoaderMessage("Accessing your vault...");
     }
   };
 
@@ -807,8 +805,8 @@ const Home = () => {
   const handleDelete = (e, fileId) => {
     e.stopPropagation();
     showConfirm(
-        "Decommission Binary?", 
-        "Are you absolutely sure you want to permanently decommission this file? This operation will purge all encrypted fragments from the secure nodes.",
+        "Delete File?", 
+        "Are you sure you want to permanently delete this file? This action is irreversible.",
         async () => {
             try {
               const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
@@ -819,10 +817,10 @@ const Home = () => {
                 if (fileToRemove) setTotalStorageUsed(prev => prev - fileToRemove.fileSize);
                 if (blobCache[fileId]) URL.revokeObjectURL(blobCache[fileId]);
                 closeDialog();
-                showToast("success", "Identity decommissioned successfully.");
+                showToast("success", "File deleted successfully.");
               }
             } catch (error) {
-              showToast("error", "Security Decommissioning failed.");
+              showToast("error", "Delete failed.");
             }
         },
         true
@@ -1046,8 +1044,8 @@ const Home = () => {
           
           <div style={{ paddingBottom: '24px', borderBottom: '1px solid var(--border-color)', marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
              <div>
-               <h2 style={{ fontSize: '2.5rem', marginBottom: '8px', fontWeight: '700' }}>Dashboard</h2>
-               <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage your files and encrypted binaries safely.</p>
+               <h2 style={{ fontSize: '2.5rem', marginBottom: '8px', fontWeight: '700' }}>Vault</h2>
+               <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage your files and encrypted data safely.</p>
              </div>
              
              {/* Toolbar Controls Matrix */}
@@ -1127,8 +1125,8 @@ const Home = () => {
                   <ShieldAlert size={20} color="#eab308" />
                 </div>
                 <div>
-                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>Identity Verification Required</h4>
-                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Secure your vault by verifying your communication channel.</p>
+                  <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '600' }}>Verify Your Email</h4>
+                  <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-muted)' }}>Secure your account by verifying your email address.</p>
                 </div>
               </div>
               <div style={{ display: 'flex', gap: '12px' }}>
@@ -1147,7 +1145,7 @@ const Home = () => {
              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '450px', background: 'linear-gradient(145deg, rgba(59, 130, 246, 0.05), rgba(15, 23, 42, 0.4))', borderRadius: '24px', border: '1px solid rgba(255,255,255,0.05)', boxShadow: '0 20px 40px rgba(0,0,0,0.3)', animation: 'fadeIn 0.6s ease-out' }}>
                 <img src="/logo.png" alt="SecureNest Welcome" style={{ width: '90px', height: '90px', objectFit: 'contain', marginBottom: '16px', filter: 'drop-shadow(0 5px 15px rgba(0,0,0,0.5))' }} />
                 <h2 style={{ fontSize: '2.2rem', fontWeight: '800', marginBottom: '12px', background: 'linear-gradient(to right, #fff, var(--text-muted))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', textAlign: 'center' }}>Welcome, {currentUser?.displayName?.split(' ')[0] || 'User'}!</h2>
-                <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', textAlign: 'center', maxWidth: '420px', lineHeight: '1.6', marginBottom: '32px' }}>Your fully private encryption vault is ready. Upload your first file to initiate the dynamic telemetry engine.</p>
+                <p style={{ color: 'var(--text-muted)', fontSize: '1.05rem', textAlign: 'center', maxWidth: '420px', lineHeight: '1.6', marginBottom: '32px' }}>Your private encryption vault is ready. Upload your first file to get started.</p>
                 
                 <button className="btn-primary" style={{ padding: '14px 32px', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '1.05rem', borderRadius: '16px', boxShadow: '0 10px 25px rgba(59, 130, 246, 0.3)', width: 'auto', opacity: isUploading ? 0.7 : 1, cursor: isUploading ? 'not-allowed' : 'pointer' }} onClick={() => !isUploading && fileInputRef.current?.click()} disabled={isUploading}>
                    {isUploading ? <RefreshCw size={20} className="animate-spin" style={{ animation: 'spin 1.5s linear infinite' }} /> : <Upload size={20} />} 
@@ -1396,7 +1394,7 @@ const Home = () => {
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             {dynamicCategories.length === 0 ? (
-               <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', padding: '16px 0' }}>No categorical data stored yet...</div>
+               <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', padding: '16px 0' }}>No data stored yet...</div>
             ) : (
                 topCategories.map((cat, idx) => (
                     <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
@@ -1449,7 +1447,7 @@ const Home = () => {
                    <Fingerprint size={32} />
                 </div>
                 <h2 style={{ fontSize: '1.8rem', fontWeight: '700', marginBottom: '12px' }}>Add Account</h2>
-                <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Choose your preferred authentication protocol to initiate a secure parallel session.</p>
+                <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Choose your preferred authentication method.</p>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                    <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }} onClick={() => { setIsAccountLoading(true); loginWithGoogle().then(() => setShowAccountModal(false)).catch(e => showToast("error", e.message)).finally(() => setIsAccountLoading(false)); }}>
@@ -1467,8 +1465,8 @@ const Home = () => {
 
             {(accountModalView === 'login' || accountModalView === 'signup') && (
               <div style={{ animation: 'slideInRight 0.3s ease-out' }}>
-                <button onClick={() => setAccountModalView('options')} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9rem' }}><ChevronLeft size={16}/> Back to protocols</button>
-                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>{accountModalView === 'login' ? 'Secure Login' : 'Create Identity'}</h3>
+                <button onClick={() => setAccountModalView('options')} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.9rem' }}><ChevronLeft size={16}/> Back to options</button>
+                <h3 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '24px' }}>{accountModalView === 'login' ? 'Login' : 'Create Account'}</h3>
                 
                 <form onSubmit={async (e) => {
                    e.preventDefault();
@@ -1486,10 +1484,10 @@ const Home = () => {
                 }}>
                    <div className="input-group">
                       <label>Email Address</label>
-                      <input type="email" required className="input-field" value={accountFormData.email} onChange={e => setAccountFormData({...accountFormData, email: e.target.value})} placeholder="Ex: pilot@securenest.io" disabled={isEmailLocked} style={{ background: isEmailLocked ? 'rgba(255,255,255,0.03)' : undefined, cursor: isEmailLocked ? 'not-allowed' : 'text', opacity: isEmailLocked ? 0.7 : 1 }} />
+                      <input type="email" required className="input-field" value={accountFormData.email} onChange={e => setAccountFormData({...accountFormData, email: e.target.value})} placeholder="Ex: user@example.com" disabled={isEmailLocked} style={{ background: isEmailLocked ? 'rgba(255,255,255,0.03)' : undefined, cursor: isEmailLocked ? 'not-allowed' : 'text', opacity: isEmailLocked ? 0.7 : 1 }} />
                    </div>
                    <div className="input-group">
-                      <label>Secret Password</label>
+                      <label>Password</label>
                       <div style={{ position: 'relative' }}>
                         <input type={showAccountPass ? "text" : "password"} required className="input-field" value={accountFormData.password} onChange={e => setAccountFormData({...accountFormData, password: e.target.value})} style={{ paddingRight: '44px' }} />
                         <button type="button" onClick={() => setShowAccountPass(!showAccountPass)} style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
@@ -1499,12 +1497,12 @@ const Home = () => {
                    </div>
                    {accountModalView === 'signup' && (
                      <div className="input-group">
-                        <label>Confirm Entry Secret</label>
+                        <label>Confirm Password</label>
                         <input type="password" required className="input-field" value={accountFormData.confirmPassword} onChange={e => setAccountFormData({...accountFormData, confirmPassword: e.target.value})} />
                      </div>
                    )}
                    <button type="submit" className="btn-primary" disabled={isAccountLoading}>
-                      {isAccountLoading ? 'Authenticating...' : (accountModalView === 'login' ? 'Authorize Session' : 'Generate Vault Access')}
+                      {isAccountLoading ? 'Processing...' : (accountModalView === 'login' ? 'Login' : 'Create Account')}
                    </button>
                 </form>
               </div>
@@ -1525,30 +1523,30 @@ const Home = () => {
                     {infoFile.isFolder ? <Folder size={24} /> : <File size={24} />}
                  </div>
                  <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>Identity Metadata</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Verified Vault Record</p>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>File Details</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>File Information</p>
                  </div>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
                  <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Original Name</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Name</p>
                     <p style={{ fontWeight: '500', wordBreak: 'break-all' }}>{infoFile.originalName}</p>
                  </div>
                  
                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Registry Type</p>
+                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Type</p>
                        <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? 'Directory' : infoFile.mimeType.split('/')[1]?.toUpperCase() || 'DATA'}</p>
                     </div>
                     <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Storage Weight</p>
+                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Size</p>
                        <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? '--' : `${(infoFile.fileSize / 1024 / 1024).toFixed(3)} MB`}</p>
                     </div>
                  </div>
 
                  <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Vault Location</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Location</p>
                     <p style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
                        <Globe size={14} color="#3b82f6" />
                        Root {folderStack.map(f => ` / ${f.originalName}`).join('')} {currentFolder ? ` / ${currentFolder.originalName}` : ''}
@@ -1556,17 +1554,17 @@ const Home = () => {
                  </div>
 
                  <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Creation Timestamp</p>
+                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Created</p>
                     <p style={{ fontWeight: '500' }}>{new Date(infoFile.createdAt).toLocaleString()}</p>
                  </div>
 
                  <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <ShieldAlert size={16} color="#34d399" />
-                    <span style={{ fontSize: '0.85rem', color: '#34d399' }}>Secured with AES-GCM 256-bit Hardware-Key Encryption</span>
+                    <span style={{ fontSize: '0.85rem', color: '#34d399' }}>Secured with AES-256 encryption</span>
                  </div>
               </div>
 
-              <button onClick={() => setInfoFile(null)} className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '12px' }}>Close Inspector</button>
+              <button onClick={() => setInfoFile(null)} className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '12px' }}>Close</button>
            </div>
         </div>
       )}
@@ -1618,7 +1616,7 @@ const Home = () => {
                </button>
                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span className="selection-count-mobile" style={{ fontWeight: '700', fontSize: '1rem' }}>{selectedIds.length}</span>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Selected</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Items</span>
                </div>
             </div>
 
@@ -1628,7 +1626,7 @@ const Home = () => {
                  className="btn-primary" 
                  style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--accent-primary)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
                >
-                  <UserPlus size={14} /> <span className="hide-on-mobile-text">Group & Move</span>
+                  <UserPlus size={14} /> <span className="hide-on-mobile-text">Move to Folder</span>
                </button>
                <button 
                  onClick={handleBulkDownload} 
@@ -1694,8 +1692,8 @@ const Home = () => {
                  {isUploading ? <RefreshCw size={18} className="animate-spin" color="#3b82f6" /> : <Check size={18} color="#10b981" />}
                  <span style={{ fontSize: '0.9rem', fontWeight: '600', whiteSpace: 'nowrap' }}>
                     {isUploading 
-                      ? `${uploadQueue.filter(t => t.status === 'done').length}/${uploadQueue.length} Vault Nodes Ingested` 
-                      : 'Vault Ingestion Certified'}
+                      ? `${uploadQueue.filter(t => t.status === 'done').length}/${uploadQueue.length} Files Uploaded` 
+                      : 'All Files Secured'}
                  </span>
               </div>
               <ChevronDown size={18} style={{ transform: isUploadMinimized ? 'rotate(180deg)' : 'none', transition: 'transform 0.3s' }} />
@@ -1717,7 +1715,7 @@ const Home = () => {
                          <div style={{ flex: 1, minWidth: 0 }}>
                             <p style={{ margin: 0, fontSize: '0.8rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{task.originalName}</p>
                             <p style={{ margin: 0, fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'capitalize' }}>
-                               {task.status === 'encrypting' ? 'AES-GCM Entropy Mapping...' : task.status}
+                               {task.status === 'encrypting' ? 'Encrypting...' : task.status}
                             </p>
                          </div>
                          {task.status === 'done' && (
@@ -1756,9 +1754,9 @@ const Home = () => {
             <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto', color: 'var(--accent-primary)' }}>
               <Lock size={32} />
             </div>
-            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '12px' }}>Identity Verification</h2>
+            <h2 style={{ fontSize: '1.5rem', fontWeight: '700', marginBottom: '12px' }}>Verify Password</h2>
             <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px' }}>
-              For your protection, please verify your SecureVault password to access high-level cryptographic identities.
+              Please enter your password to continue.
             </p>
             
             <form onSubmit={verifyManualAuth}>
@@ -1766,7 +1764,7 @@ const Home = () => {
                 <input 
                   type="password" 
                   className="input-field" 
-                  placeholder="Enter Account Password"
+                  placeholder="Password"
                   value={manualPass}
                   onChange={(e) => setManualPass(e.target.value)}
                   autoFocus
@@ -1791,7 +1789,7 @@ const Home = () => {
                   className="btn-primary" 
                   disabled={isAuthVerifying}
                 >
-                  {isAuthVerifying ? 'Verifying...' : 'Verify Session'}
+                  {isAuthVerifying ? 'Verifying...' : 'Verify'}
                 </button>
               </div>
             </form>

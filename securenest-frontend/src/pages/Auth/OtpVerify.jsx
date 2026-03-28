@@ -25,15 +25,15 @@ const OtpVerify = () => {
         const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/otp/verify-otp`, { email, otp: emailOtp });
         
         if (data.success) {
-            // 2. Native Auth User Registration Creation into GCP via React Context
+            // 2. Create account
             const userCredentials = await signup(email, location.state?.password);
             
-            // 3. Vault Mongoose Synchronization (Establishing robust DB profile)
+            // 3. Account sync
             await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/auth/sync`, {
                 userId: userCredentials.user.uid,
                 email,
-                fullName: location.state?.fullName || 'SecureVault User',
-                phone: 'Verified Inside Dashboard' // Placeholder to keep model happy if it expects phone
+                fullName: location.state?.fullName || 'User',
+                phone: 'Verified' 
             });
             
             // 4. Secure Transfer
@@ -41,7 +41,7 @@ const OtpVerify = () => {
         }
     } catch (error) {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        showToast("error", `Identity Verification Failed: ${error.response?.data?.message || error.message}`);
+        showToast("error", `Verification failed: ${error.response?.data?.message || error.message}`);
     } finally {
         setIsVerifying(false);
     }
@@ -50,16 +50,16 @@ const OtpVerify = () => {
   return (
     <div className="auth-container">
       <AnimatedBackground />
-      {isVerifying && <Loader message="Verifying Cryptographic Footprint..." />}
+      {isVerifying && <Loader message="Verifying..." />}
       <div className="glass-panel auth-card slide-in-right" style={{ maxWidth: '450px' }}>
         <div className="auth-header" style={{ marginBottom: '24px' }}>
-          <h1 style={{ fontSize: '1.8rem' }}>Verify Identity</h1>
-          <p style={{color: 'var(--text-muted)'}}>We've sent a 6-digit cryptographic code securely to <br/><strong style={{color: '#fff'}}>{email}</strong></p>
+          <h2 style={{ fontSize: '1.8rem', fontWeight: '700', marginBottom: '8px' }}>Verify Your Email</h2>
+          <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Enter the verification code sent to your inbox at <strong style={{color: '#fff'}}>{email}</strong></p>
         </div>
         
         <form onSubmit={handleVerify}>
           <div className="input-group" style={{ marginBottom: '32px' }}>
-            <label>Verification Key</label>
+            <label>Verification Code</label>
             <input 
               type="text" 
               maxLength="6"
@@ -72,13 +72,13 @@ const OtpVerify = () => {
             />
           </div>
 
-          <button type="submit" className="btn-primary" disabled={emailOtp.length !== 6} style={{ opacity: (emailOtp.length === 6) ? 1 : 0.5, cursor: (emailOtp.length === 6) ? 'pointer' : 'not-allowed' }}>
-            Verify & Create Vault
+          <button type="submit" className="btn-primary" disabled={emailOtp.length !== 6 || isVerifying} style={{ opacity: (emailOtp.length === 6) ? 1 : 0.5, cursor: (emailOtp.length === 6) ? 'pointer' : 'not-allowed' }}>
+            Verify Account
           </button>
         </form>
         
         <p style={{ textAlign: 'center', marginTop: '24px', color: 'var(--text-muted)', fontSize: '0.9rem' }}>
-          Didn't receive the codes? <span className="link-text">Resend</span>
+          Didn't receive the code? <span className="link-text">Resend</span>
         </p>
       </div>
     </div>

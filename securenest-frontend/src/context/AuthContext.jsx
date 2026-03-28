@@ -100,7 +100,7 @@ export const AuthProvider = ({ children }) => {
 
   return (
     <AuthContext.Provider value={value}>
-      {loading ? <Loader fullScreen={true} message="Authenticating Secure Session..." /> : children}
+      {loading ? <Loader fullScreen={true} message="Loading..." /> : children}
     </AuthContext.Provider>
   );
 };

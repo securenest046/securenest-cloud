@@ -64,10 +64,10 @@ export const DialogProvider = ({ children }) => {
               <div style={{ background: dialog.isDanger ? 'rgba(239, 68, 68, 0.1)' : 'rgba(59, 130, 246, 0.1)', padding: '10px', borderRadius: '12px' }}>
                 {dialog.type === 'prompt' ? <Folder size={24} color="#3b82f6" /> : dialog.isDanger ? <ShieldAlert size={24} color="#ef4444" /> : <Info size={24} color="#3b82f6" />}
               </div>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: '700', color: '#fff' }}>{dialog.title}</h3>
+              <h3 style={{ fontSize: '1.2rem', fontWeight: '700', marginBottom: '12px' }}>{dialog.title || 'Confirm Action'}</h3>
             </div>
             
-            <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', lineHeight: '1.6', marginBottom: '24px' }}>{dialog.message}</p>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: '24px', lineHeight: '1.5' }}>{dialog.message}</p>
             
             {dialog.type === 'prompt' && (
               <input 

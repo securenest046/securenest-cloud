@@ -20,7 +20,7 @@ const Login = () => {
       await login(email, password);
       navigate('/home');
     } catch (error) {
-      showToast("error", "Failed to sign in. Please verify your master credentials.");
+      showToast("error", "Failed to sign in. Please check your password.");
     }
   };
 
@@ -36,13 +36,13 @@ const Login = () => {
           userId: userCredentials.user.uid,
           email: userCredentials.user.email,
           fullName: userCredentials.user.displayName || 'Vault User'
-      }).catch(err => console.error("Identity sync deferred:", err));
+      }).catch(err => console.error("Account sync deferred:", err));
 
       navigate('/home');
     } catch (error) {
       console.error(error);
       const isDomainError = error.message.includes('unauthorized-domain');
-      showToast("error", isDomainError ? "CRITICAL: Domain not authorized in Firebase!" : `Access Failed: ${error.message}`);
+      showToast("error", isDomainError ? "Error: Domain not authorized!" : `Login failed: ${error.message}`);
     }
   };
 
@@ -52,8 +52,8 @@ const Login = () => {
       <div className="glass-panel auth-card slide-in-left" style={{ maxWidth: '450px' }}>
         <div className="auth-header" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <img src="/logo.png" alt="SecureNest" style={{ width: '80px', height: '80px', objectFit: 'contain', marginBottom: '16px', filter: 'drop-shadow(0 4px 6px rgba(0,0,0,0.5))' }} />
-          <h1 style={{ margin: 0, paddingBottom: '8px' }}>SecureNest</h1>
-          <p style={{color: 'var(--text-muted)'}}>Welcome back to your private vault</p>
+          <h1 style={{ margin: 0, paddingBottom: '8px' }}>Sign In</h1>
+          <p style={{color: 'var(--text-muted)'}}>Sign in to access your secure vault.</p>
         </div>
         
         <form onSubmit={handleLogin}>
@@ -64,12 +64,12 @@ const Login = () => {
               className="input-field" 
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              placeholder="you@example.com"
+              placeholder="Ex: name@example.com"
               required 
             />
           </div>
           <div className="input-group" style={{ marginBottom: '24px' }}>
-            <label>Master Password</label>
+            <label>Password</label>
             <div style={{ position: 'relative' }}>
               <input 
                 type={showPassword ? "text" : "password"} 
@@ -93,7 +93,9 @@ const Login = () => {
             <span className="link-text" style={{ fontSize: '0.9rem' }}>Forgot password?</span>
           </div>
 
-           <button type="submit" className="btn-primary" style={{ marginBottom: '16px' }}>Login</button>
+           <button type="submit" disabled={isSending} className="btn-primary" style={{ marginTop: '12px', opacity: isSending ? 0.7 : 1, cursor: isSending ? 'not-allowed' : 'pointer' }}>
+             {isSending ? 'Signing In...' : 'Login'}
+           </button>
           
           <div style={{ display: 'flex', alignItems: 'center', margin: '20px 0', color: 'var(--text-muted)' }}>
             <div style={{ flex: 1, height: '1px', background: 'var(--border-color)' }}></div>
