@@ -744,9 +744,6 @@ const Home = () => {
               <div style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500', margin: 0 }}><Key size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }}/> Vault Encryption Key</p>
-                   <button onClick={handleCopy} style={{ background: 'transparent', border: 'none', color: copied ? 'var(--success)' : 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.8rem', fontWeight: '500' }}>
-                      {copied ? <><Check size={14}/> Copied</> : <><Copy size={14}/> Copy</>}
-                   </button>
                 </div>
                 <div className="vault-key-row">
                   <div className="vault-key-display">
