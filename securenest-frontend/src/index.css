@@ -461,3 +461,7 @@ body {
     width: 100% !important;
   }
 }
+@keyframes slideInDown {
+  from { opacity: 0; transform: translate(-50%, -30px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}

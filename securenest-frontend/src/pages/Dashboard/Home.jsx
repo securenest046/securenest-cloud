@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, ChevronDown, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus, Lock, ShieldCheck } from 'lucide-react';
+import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, ChevronDown, X, PieChart, Trash2, Trash, ShieldAlert, CheckCircle, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus, Lock, ShieldCheck } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 import Loader from '../../components/Loader';
 import { useDialog } from '../../context/DialogContext';
@@ -38,6 +38,16 @@ const Home = () => {
   const [manualPass, setManualPass] = useState("");
   const [isAuthVerifying, setIsAuthVerifying] = useState(false);
   const [authError, setAuthError] = useState("");
+
+  // Professional Telemetry Notification Matrix 🛡️
+  const [notifications, setNotifications] = useState([]);
+  const addNotification = (type, message) => {
+    const id = Date.now();
+    setNotifications(prev => [...prev, { id, type, message }]);
+    setTimeout(() => {
+        setNotifications(prev => prev.filter(n => n.id !== id));
+    }, 6000);
+  };
 
   const [recentAccounts, setRecentAccounts] = useState(() => {
     const saved = localStorage.getItem('recentAccounts');
@@ -101,12 +111,12 @@ const Home = () => {
         if (data.success) {
             // Remove moved items from current view
             setUserFiles(prev => prev.filter(f => !selectedIds.includes(f._id)));
-            showAlert("Vault Synchronized", `Successfully relocated ${selectedIds.length} identities.`);
+            addNotification("success", `Successfully relocated ${selectedIds.length} identities.`);
             setSelectedIds([]);
         }
     } catch (err) {
         console.error("Relocation Error:", err);
-        showAlert("Branch Failure", "Failed to resolve the relocation request.");
+        addNotification("error", "Failed to resolve the relocation request.");
     } finally {
         setIsUploading(false);
         setLoaderMessage("Accessing Secure Vault...");
@@ -138,7 +148,7 @@ const Home = () => {
           }
       } catch (err) {
           console.error("New Folder Move Error:", err);
-          showAlert("Relocation Failure", "Failed to initialize the destination registry.");
+          addNotification("error", "Failed to initialize the destination registry.");
       } finally {
           setIsUploading(false);
           setLoaderMessage("Accessing Secure Vault...");
@@ -668,8 +678,9 @@ const Home = () => {
       }
       setUploadQueue(prev => [...prev, ...newQueueItems]);
       setIsUploadMinimized(false);
+      addNotification("success", `Ingesting ${newQueueItems.length} new identities into the vault...`);
     } catch (err) {
-      showAlert("Drop Failure", "Failed to resolve dropped directory structure.");
+      addNotification("error", "Failed to resolve dropped directory structure.");
     } finally {
       setIsUploading(false);
       setLoaderMessage("Accessing Secure Vault...");
@@ -1905,6 +1916,15 @@ const Home = () => {
           </div>
         </div>
       )}
+      {/* Professional Telemetry Notification Overlay 🛡️ */}
+      <div style={{ position: 'fixed', top: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 100000, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', pointerEvents: 'none' }}>
+        {notifications.map(n => (
+          <div key={n.id} className="glass-panel" style={{ padding: '12px 24px', borderRadius: '16px', border: `1px solid ${n.type === 'error' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(59, 130, 246, 0.4)'}`, background: 'rgba(15, 23, 42, 0.95)', color: '#fff', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: '12px', animation: 'slideInDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', pointerEvents: 'auto' }}>
+             {n.type === 'error' ? <ShieldAlert size={18} color="#ef4444" /> : <CheckCircle size={18} color="#3b82f6" />}
+             <span style={{ fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.3px' }}>{n.message}</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 };

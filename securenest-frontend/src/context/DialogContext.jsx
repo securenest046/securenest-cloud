@@ -6,7 +6,7 @@ const DialogContext = createContext();
 export const useDialog = () => useContext(DialogContext);
 
 export const DialogProvider = ({ children }) => {
-  const [dialog, setDialog] = useState({
+  const initialDialogState = {
     show: false,
     type: 'alert',
     title: '',
@@ -17,21 +17,23 @@ export const DialogProvider = ({ children }) => {
     confirmText: 'Confirm',
     cancelText: 'Cancel',
     isDanger: false
-  });
+  };
+
+  const [dialog, setDialog] = useState(initialDialogState);
 
   const showAlert = (title, message, onConfirm = null) => {
-    setDialog({ show: true, type: 'alert', title, message, onConfirm, confirmText: 'Understood' });
+    setDialog({ ...initialDialogState, show: true, type: 'alert', title, message, onConfirm, confirmText: 'Understood' });
   };
 
   const showConfirm = (title, message, onConfirm, isDanger = false) => {
-    setDialog({ show: true, type: 'confirm', title, message, onConfirm, isDanger, confirmText: isDanger ? 'Delete' : 'Confirm' });
+    setDialog({ ...initialDialogState, show: true, type: 'confirm', title, message, onConfirm, isDanger, confirmText: isDanger ? 'Delete' : 'Confirm' });
   };
 
   const showPrompt = (title, message, onConfirm, defaultValue = '') => {
-    setDialog({ show: true, type: 'prompt', title, message, onConfirm, inputValue: defaultValue, confirmText: 'Confirm' });
+    setDialog({ ...initialDialogState, show: true, type: 'prompt', title, message, onConfirm, inputValue: defaultValue });
   };
 
-  const closeDialog = () => setDialog(prev => ({ ...prev, show: false }));
+  const closeDialog = () => setDialog(initialDialogState);
 
   return (
     <DialogContext.Provider value={{ showAlert, showConfirm, showPrompt, closeDialog }}>
