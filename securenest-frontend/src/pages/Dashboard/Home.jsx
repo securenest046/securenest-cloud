@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, ChevronDown, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus } from 'lucide-react';
+import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, ChevronDown, ChevronUp, X, PieChart, Trash2, Trash, ShieldAlert, ShieldCheck, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus, Cloud, Minus } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 import Loader from '../../components/Loader';
 import { useDialog } from '../../context/DialogContext';
@@ -25,9 +25,10 @@ const Home = () => {
   
   const fileInputRef = React.useRef(null);
   const folderInputRef = React.useRef(null);
-  const [isUploading, setIsUploading] = useState(false);
   const [showUploadMenu, setShowUploadMenu] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
+  const [uploadQueue, setUploadQueue] = useState([]); // {id, name, status, type}
+  const [isHubMinimized, setIsHubMinimized] = useState(false);
+  const [isProcessingQueue, setIsProcessingQueue] = useState(false);
   const [pageLoading, setPageLoading] = useState(true);
   const [loaderMessage, setLoaderMessage] = useState("Accessing Secure Vault...");
 
@@ -229,129 +230,140 @@ const Home = () => {
     }
   };
 
-  const handleUploadSelectedFile = async (e) => {
-    const files = Array.from(e.target.files);
-    if (files.length === 0) return;
-
-    if (!vaultKey || vaultKey === 'Loading...') {
-      showAlert("Security Constraint", "Cryptographic Vault Key is not ready. Please try again in 2 seconds.");
-      return;
-    }
-
-    setIsUploading(true);
-    setUploadProgress({ current: 0, total: files.length });
+  const processUploadItem = async (item) => {
+    if (!vaultKey || vaultKey === 'Loading...') return;
+    
+    // Update status to Encrypting
+    setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'Encrypting' } : q));
     
     try {
-      const { encryptFileForUpload } = await import('../../utils/cryptoFunctions');
-      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        setUploadProgress(prev => ({ ...prev, current: i + 1 }));
+        const { encryptFileForUpload } = await import('../../utils/cryptoFunctions');
+        const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
         
+        // Handle Folder creation if needed (for items from folder upload)
+        let finalParentId = item.parentId;
+        if (item.relativePath) {
+            const pathParts = item.relativePath.split('/');
+            pathParts.pop(); // Remove filename
+            let currentParentId = item.baseParentId;
+            let currentPath = "";
+            
+            // We'll trust the caller to have ensured folders are created for folders
+            // or we handle directory logic here. Let's handle it here for robustness.
+            // But for efficiency, handleUploadSelectedFolder will prepare the structure.
+        }
+
         // Execute AES-GCM Client-Side Encryption
-        const { cipherBlob, iv } = await encryptFileForUpload(file, vaultKey);
+        const { cipherBlob, iv } = await encryptFileForUpload(item.file, vaultKey);
+        
+        // Update status to Uploading
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'Uploading' } : q));
 
         const formData = new FormData();
-        formData.append('file', cipherBlob, file.name);
+        formData.append('file', cipherBlob, item.file.name);
         formData.append('userId', currentUser.uid);
-        formData.append('originalName', file.name);
-        formData.append('mimeType', file.type || 'application/octet-stream');
+        formData.append('originalName', item.file.name);
+        formData.append('mimeType', item.file.type || 'application/octet-stream');
         formData.append('ivArray', JSON.stringify(iv));
-        if (currentFolder) formData.append('parentId', currentFolder._id);
+        if (finalParentId && finalParentId !== 'null') formData.append('parentId', finalParentId);
 
         const { data } = await axios.post(`${bUrl}/api/storage/upload`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
+            headers: { 'Content-Type': 'multipart/form-data' }
         });
 
         if (data.success) {
-          setUserFiles(prev => [data.file, ...prev]);
-          setTotalStorageUsed(prev => prev + data.file.fileSize);
+            setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'Completed' } : q));
+            // Update UI/Storage metrics
+            if (!item.parentId || item.parentId === (currentFolder?._id || 'null')) {
+                setUserFiles(prev => [data.file, ...prev]);
+            }
+            setTotalStorageUsed(prev => prev + data.file.fileSize);
+            
+            // Auto-remove completed items after 5 seconds to keep hub clean
+            setTimeout(() => {
+                setUploadQueue(prev => prev.filter(q => q.id !== item.id));
+            }, 5000);
+        } else {
+            throw new Error("Backend Refusal");
         }
-      }
     } catch (err) {
-      console.error("Bulk Upload Error", err);
-      showAlert("Transmission Error", "One or more files failed to encrypt or upload.");
-    } finally {
-      setIsUploading(false);
-      setUploadProgress({ current: 0, total: 0 });
-      if (fileInputRef.current) fileInputRef.current.value = null;
+        console.error("Transmission Hub Error", err);
+        setUploadQueue(prev => prev.map(q => q.id === item.id ? { ...q, status: 'Error' } : q));
     }
+  };
+
+  useEffect(() => {
+    if (isProcessingQueue || !vaultKey || vaultKey === "Loading...") return;
+    
+    const nextItem = uploadQueue.find(q => q.status === 'Pending');
+    if (nextItem) {
+        setIsProcessingQueue(true);
+        processUploadItem(nextItem).finally(() => setIsProcessingQueue(false));
+    }
+  }, [uploadQueue, isProcessingQueue, vaultKey]);
+
+  const handleUploadSelectedFile = (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
+    
+    const newItems = files.map(file => ({
+        id: Math.random().toString(36).substr(2, 9),
+        file,
+        name: file.name,
+        status: 'Pending',
+        parentId: currentFolder ? currentFolder._id : null
+    }));
+    
+    setUploadQueue(prev => [...prev, ...newItems]);
+    if (fileInputRef.current) fileInputRef.current.value = null;
   };
 
   const handleUploadSelectedFolder = async (e) => {
     const files = Array.from(e.target.files);
     if (files.length === 0) return;
 
-    if (!vaultKey || vaultKey === 'Loading...') {
-      showAlert("Security Constraint", "Cryptographic Vault Key is not ready.");
-      return;
-    }
+    const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+    const folderIdMap = { "": currentFolder ? currentFolder._id : null };
+    const baseParentId = currentFolder ? currentFolder._id : null;
 
-    setIsUploading(true);
-    setUploadProgress({ current: 0, total: files.length });
-    
-    try {
-      const { encryptFileForUpload } = await import('../../utils/cryptoFunctions');
-      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-      const folderIdMap = { "": currentFolder ? currentFolder._id : null };
-
-      for (let i = 0; i < files.length; i++) {
-        const file = files[i];
-        setUploadProgress(prev => ({ ...prev, current: i + 1 }));
-
+    // We process folders sequentially because they are meta-only and fast
+    // and we need folder IDs before files can be queued
+    for (const file of files) {
         const pathParts = file.webkitRelativePath.split('/');
-        const fileName = pathParts.pop();
+        pathParts.pop(); // remove file name
         let parentPath = "";
-        let currentParentId = currentFolder ? currentFolder._id : null;
+        let currentParentId = baseParentId;
 
         for (const folderName of pathParts) {
-          const fullPath = parentPath ? `${parentPath}/${folderName}` : folderName;
-          if (!folderIdMap[fullPath]) {
-            const { data } = await axios.post(`${bUrl}/api/storage/folder`, {
-              userId: currentUser.uid,
-              originalName: folderName,
-              parentId: currentParentId
-            });
-            if (data.success) {
-              folderIdMap[fullPath] = data.folder._id;
-              if (currentParentId === (currentFolder ? currentFolder._id : null)) {
-                setUserFiles(prev => [data.folder, ...prev]);
-              }
-            } else { throw new Error(`Folder Error: ${folderName}`); }
-          }
-          currentParentId = folderIdMap[fullPath];
-          parentPath = fullPath;
+            const fullPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+            if (!folderIdMap[fullPath]) {
+                const { data } = await axios.post(`${bUrl}/api/storage/folder`, {
+                    userId: currentUser.uid,
+                    originalName: folderName,
+                    parentId: currentParentId
+                });
+                if (data.success) {
+                    folderIdMap[fullPath] = data.folder._id;
+                    if (currentParentId === baseParentId) {
+                        setUserFiles(prev => [data.folder, ...prev]);
+                    }
+                }
+            }
+            currentParentId = folderIdMap[fullPath];
+            parentPath = fullPath;
         }
 
-        const { cipherBlob, iv } = await encryptFileForUpload(file, vaultKey);
-        const formData = new FormData();
-        formData.append('file', cipherBlob, fileName);
-        formData.append('userId', currentUser.uid);
-        formData.append('originalName', fileName);
-        formData.append('mimeType', file.type || 'application/octet-stream');
-        formData.append('ivArray', JSON.stringify(iv));
-        formData.append('parentId', currentParentId || 'null');
-
-        const { data } = await axios.post(`${bUrl}/api/storage/upload`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
-
-        if (data.success) {
-          if (currentParentId === (currentFolder ? currentFolder._id : null)) {
-            setUserFiles(prev => [data.file, ...prev]);
-          }
-          setTotalStorageUsed(prev => prev + data.file.fileSize);
-        }
-      }
-    } catch (err) {
-      console.error("Folder Upload Error", err);
-      showAlert("Recursion Error", "Failed to upload folder contents.");
-    } finally {
-      setIsUploading(false);
-      setUploadProgress({ current: 0, total: 0 });
-      if (folderInputRef.current) folderInputRef.current.value = null;
+        // Add file to queue with resolved parentId
+        const newItem = {
+            id: Math.random().toString(36).substr(2, 9),
+            file,
+            name: file.name,
+            status: 'Pending',
+            parentId: folderIdMap[parentPath]
+        };
+        setUploadQueue(prev => [...prev, newItem]);
     }
+    if (folderInputRef.current) folderInputRef.current.value = null;
   };
 
   const handleFileClick = async (file) => {
@@ -681,17 +693,14 @@ const Home = () => {
                    <button onClick={() => setViewMode('list')} style={{ background: viewMode === 'list' ? 'var(--accent-primary)' : 'transparent', border: 'none', padding: '8px 12px', color: '#fff', cursor: 'pointer', flex: 1 }}><ListIcon size={18} /></button>
                 </div>
 
-                <input type="file" ref={fileInputRef} multiple style={{ display: 'none' }} onChange={handleUploadSelectedFile} />
-                <input type="file" ref={folderInputRef} webkitdirectory="" style={{ display: 'none' }} onChange={handleUploadSelectedFolder} />
-
                 <div style={{ position: 'relative' }}>
-                   <button className="btn-primary" style={{ width: 'auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', whiteSpace: 'nowrap', opacity: isUploading ? 0.8 : 1 }} onClick={() => !isUploading && setShowUploadMenu(!showUploadMenu)} disabled={isUploading}>
-                      {isUploading ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />} 
-                      {isUploading ? `Uploding ${uploadProgress.current}/${uploadProgress.total}...` : 'Upload'}
+                   <button className="btn-primary" style={{ width: 'auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', whiteSpace: 'nowrap' }} onClick={() => setShowUploadMenu(!showUploadMenu)}>
+                      <Upload size={18} /> 
+                      Upload
                       <ChevronDown size={14} style={{ marginLeft: '4px', transform: showUploadMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
                    </button>
 
-                   {showUploadMenu && !isUploading && (
+                   {showUploadMenu && (
                      <div className="glass-panel" style={{ position: 'absolute', top: '100%', left: 0, width: '180px', marginTop: '8px', padding: '8px', zIndex: 1000, background: 'rgba(15, 23, 42, 0.98)', border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', animation: 'fadeIn 0.2s ease-out' }}>
                         <button onClick={() => { fileInputRef.current?.click(); setShowUploadMenu(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', fontSize: '0.9rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(59,130,246,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
                            <File size={16} color="#3b82f6" /> Upload Files
@@ -1211,6 +1220,107 @@ const Home = () => {
 
 
       {pageLoading && <Loader message={loaderMessage} />}
+      {/* Transmission Hub - Floating Background Upload Manager */}
+      {uploadQueue.length > 0 && (
+        <div 
+          className="glass-panel" 
+          style={{ 
+            position: 'fixed', 
+            bottom: '30px', 
+            right: '30px', 
+            width: '320px', 
+            zIndex: 10000, 
+            padding: '0', 
+            overflow: 'hidden', 
+            background: 'rgba(15, 23, 42, 0.95)', 
+            border: '1px solid rgba(255,255,255,0.1)', 
+            boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+            transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+            maxHeight: isHubMinimized ? '60px' : '450px',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
+        >
+          {/* Hub Header */}
+          <div 
+            style={{ 
+              padding: '16px 20px', 
+              background: 'rgba(255,255,255,0.03)', 
+              display: 'flex', 
+              alignItems: 'center', 
+              justifyContent: 'space-between',
+              cursor: 'pointer',
+              borderBottom: isHubMinimized ? 'none' : '1px solid rgba(255,255,255,0.05)'
+            }}
+            onClick={() => setIsHubMinimized(!isHubMinimized)}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <div style={{ position: 'relative' }}>
+                <Cloud size={20} color="#3b82f6" className={uploadQueue.some(q => q.status === 'Uploading') ? 'animate-pulse' : ''} />
+                {isProcessingQueue && <RefreshCw size={10} style={{ position: 'absolute', top: '-4px', right: '-4px' }} className="animate-spin" />}
+              </div>
+              <span style={{ fontSize: '0.95rem', fontWeight: '600' }}>
+                Vault Transmission ({uploadQueue.filter(q => q.status === 'Completed').length}/{uploadQueue.length})
+              </span>
+            </div>
+            {isHubMinimized ? <ChevronUp size={18} /> : <Minus size={18} />}
+          </div>
+
+          {!isHubMinimized && (
+            <>
+               {/* Global Progress Bar */}
+               <div style={{ height: '4px', width: '100%', background: 'rgba(255,255,255,0.05)' }}>
+                  <div style={{ 
+                    height: '100%', 
+                    background: 'linear-gradient(to right, #3b82f6, #10b981)', 
+                    width: `${(uploadQueue.filter(q => q.status === 'Completed').length / uploadQueue.length) * 100}%`,
+                    transition: 'width 0.4s ease'
+                  }}></div>
+               </div>
+
+               {/* File Transmission List */}
+               <div style={{ flex: 1, overflowY: 'auto', padding: '12px 0', maxHeight: '380px' }} className="custom-scrollbar">
+                  {uploadQueue.map((item) => (
+                    <div 
+                      key={item.id} 
+                      style={{ 
+                        padding: '10px 20px', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'space-between',
+                        borderBottom: '1px solid rgba(255,255,255,0.02)',
+                        transition: 'background 0.2s',
+                        background: item.status === 'Completed' ? 'rgba(16, 185, 129, 0.05)' : 'transparent'
+                      }}
+                    >
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', overflow: 'hidden', flex: 1 }}>
+                        {item.status === 'Pending' && <Minus size={16} color="#475569" />}
+                        {item.status === 'Encrypting' && <ShieldCheck size={16} color="#f59e0b" className="animate-pulse" />}
+                        {item.status === 'Uploading' && <Cloud size={16} color="#3b82f6" className="animate-bounce" style={{ animationDuration: '2s' }} />}
+                        {item.status === 'Completed' && <Check size={16} color="#10b981" />}
+                        {item.status === 'Error' && <ShieldAlert size={16} color="#ef4444" />}
+
+                        <span style={{ 
+                          fontSize: '0.85rem', 
+                          whiteSpace: 'nowrap', 
+                          overflow: 'hidden', 
+                          textOverflow: 'ellipsis',
+                          color: item.status === 'Completed' ? '#10b981' : 'var(--text-main)',
+                          opacity: item.status === 'Pending' ? 0.6 : 1
+                        }}>
+                          {item.name}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginLeft: '12px' }}>
+                        {item.status}
+                      </span>
+                    </div>
+                  ))}
+               </div>
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
