@@ -38,6 +38,7 @@ const Home = () => {
   const [manualPass, setManualPass] = useState("");
   const [isAuthVerifying, setIsAuthVerifying] = useState(false);
   const [authError, setAuthError] = useState("");
+  const [draggedId, setDraggedId] = useState(null);
 
   const [recentAccounts, setRecentAccounts] = useState(() => {
     const saved = localStorage.getItem('recentAccounts');
@@ -51,7 +52,7 @@ const Home = () => {
         const newAcc = { 
             uid: currentUser.uid, 
             email: currentUser.email, 
-            displayName: currentUser.displayName || 'Vault User'
+            displayName: currentUser.displayName || currentUser.email?.split('@')[0] || 'Authenticated User'
         };
         const updated = [newAcc, ...filtered].slice(0, 5);
         localStorage.setItem('recentAccounts', JSON.stringify(updated));
@@ -80,33 +81,36 @@ const Home = () => {
    * Hierarchical Identity Relocation Hub 🛡️📂
    */
   const handleMoveIdentities = async (targetFolderId, targetFolderName = "Selected Identity") => {
-    if (selectedIds.length === 0) return;
+    const idsToMove = selectedIds.length > 0 ? selectedIds : (draggedId ? [draggedId] : []);
+    if (idsToMove.length === 0) return;
     
     // Prevent moving a folder into itself
-    if (selectedIds.includes(targetFolderId)) {
+    if (idsToMove.includes(targetFolderId)) {
         showToast("error", "Self-nesting is mathematically impossible.");
+        setDraggedId(null);
         return;
     }
 
-    setLoaderMessage(`Relocating ${selectedIds.length} identities to ${targetFolderName}...`);
+    setLoaderMessage(`Relocating ${idsToMove.length} identities to ${targetFolderName}...`);
     setIsUploading(true);
     try {
         const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
         const { data } = await axios.patch(`${bUrl}/api/storage/move`, {
-            targetIds: selectedIds,
+            targetIds: idsToMove,
             newParentId: targetFolderId,
             userId: currentUser.uid
         });
 
         if (data.success) {
-            // Remove moved items from current view
-            setUserFiles(prev => prev.filter(f => !selectedIds.includes(f._id)));
-            showToast("success", `Successfully relocated ${selectedIds.length} identities.`);
+            setUserFiles(prev => prev.filter(f => !idsToMove.includes(f._id)));
+            showToast("success", `Successfully relocated ${idsToMove.length} identities.`);
             setSelectedIds([]);
+            setDraggedId(null);
         }
     } catch (err) {
-        console.error("Relocation Error:", err);
-        showToast("error", "Failed to resolve the relocation request.");
+        console.error("Move Error:", err);
+        showToast("error", "Failed to relocate identities across vault registry.");
+        setDraggedId(null);
     } finally {
         setIsUploading(false);
         setLoaderMessage("Accessing Secure Vault...");
@@ -148,7 +152,7 @@ const Home = () => {
 
   const handleItemDragStart = (e, item) => {
     if (!selectedIds.includes(item._id)) {
-        setSelectedIds([item._id]);
+        setDraggedId(item._id);
     }
     e.dataTransfer.setData("type", "vault-move");
     e.dataTransfer.setData("sourceId", item._id);
@@ -940,7 +944,7 @@ const Home = () => {
                 {currentUser?.email ? currentUser.email[0].toUpperCase() : 'U'}
              </div>
              <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-                <span className="user-identity-text" style={{ fontSize: '0.9rem', fontWeight: '600' }}>{currentUser?.displayName || 'Vault User'}</span>
+                <span className="user-identity-text" style={{ fontSize: '0.9rem', fontWeight: '600' }}>{currentUser?.displayName || currentUser?.email?.split('@')[0] || 'Authenticated User'}</span>
                 <span className="user-identity-text" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{currentUser?.email}</span>
              </div>
           </div>
@@ -1567,119 +1571,6 @@ const Home = () => {
         </div>
       )}
 
-      {/* Context Action Overlay: Info Modal */}
-      {infoFile && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.3s ease-out' }} onClick={() => setInfoFile(null)}>
-           <div className="glass-panel" style={{ width: '450px', padding: '32px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
-              <button onClick={() => setInfoFile(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', padding: '8px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: infoFile.isFolder ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: infoFile.isFolder ? '#f59e0b' : '#3b82f6' }}>
-                    {infoFile.isFolder ? <Folder size={24} /> : <File size={24} />}
-                 </div>
-                 <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>Identity Metadata</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Verified Vault Record</p>
-                 </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Original Name</p>
-                    <p style={{ fontWeight: '500', wordBreak: 'break-all' }}>{infoFile.originalName}</p>
-                 </div>
-                 
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Registry Type</p>
-                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? 'Directory' : infoFile.mimeType.split('/')[1]?.toUpperCase() || 'DATA'}</p>
-                    </div>
-                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Storage Weight</p>
-                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? '--' : `${(infoFile.fileSize / 1024 / 1024).toFixed(3)} MB`}</p>
-                    </div>
-                 </div>
-
-                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Vault Location</p>
-                    <p style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                       <Globe size={14} color="#3b82f6" />
-                       Root {folderStack.map(f => ` / ${f.originalName}`).join('')} {currentFolder ? ` / ${currentFolder.originalName}` : ''}
-                    </p>
-                 </div>
-
-                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Creation Timestamp</p>
-                    <p style={{ fontWeight: '500' }}>{new Date(infoFile.createdAt).toLocaleString()}</p>
-                 </div>
-
-                 <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <ShieldAlert size={16} color="#34d399" />
-                    <span style={{ fontSize: '0.85rem', color: '#34d399' }}>Secured with AES-GCM 256-bit Hardware-Key Encryption</span>
-                 </div>
-              </div>
-
-              <button onClick={() => setInfoFile(null)} className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '12px' }}>Close Inspector</button>
-           </div>
-        </div>
-      )}
-      {/* Context Action Overlay: Info Modal */}
-      {infoFile && (
-        <div style={{ position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh', background: 'rgba(0,0,0,0.8)', backdropFilter: 'blur(8px)', zIndex: 10000, display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'fadeIn 0.3s ease-out' }} onClick={() => setInfoFile(null)}>
-           <div className="glass-panel" style={{ width: '450px', padding: '32px', position: 'relative', border: '1px solid rgba(255,255,255,0.1)' }} onClick={e => e.stopPropagation()}>
-              <button onClick={() => setInfoFile(null)} style={{ position: 'absolute', top: '20px', right: '20px', background: 'rgba(255,255,255,0.05)', border: 'none', color: '#fff', padding: '8px', borderRadius: '50%', cursor: 'pointer' }}><X size={18} /></button>
-              
-              <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '24px' }}>
-                 <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: infoFile.isFolder ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: infoFile.isFolder ? '#f59e0b' : '#3b82f6' }}>
-                    {infoFile.isFolder ? <Folder size={24} /> : <File size={24} />}
-                 </div>
-                 <div>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: '700' }}>Identity Metadata</h3>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>Verified Vault Record</p>
-                 </div>
-              </div>
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px', letterSpacing: '1px' }}>Original Name</p>
-                    <p style={{ fontWeight: '500', wordBreak: 'break-all' }}>{infoFile.originalName}</p>
-                 </div>
-                 
-                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Registry Type</p>
-                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? 'Directory' : infoFile.mimeType.split('/')[1]?.toUpperCase() || 'DATA'}</p>
-                    </div>
-                    <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                       <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Storage Weight</p>
-                       <p style={{ fontWeight: '500' }}>{infoFile.isFolder ? '--' : `${(infoFile.fileSize / 1024 / 1024).toFixed(3)} MB`}</p>
-                    </div>
-                 </div>
-
-                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Vault Location</p>
-                    <p style={{ fontWeight: '500', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                       <Globe size={14} color="#3b82f6" />
-                       Root {folderStack.map(f => ` / ${f.originalName}`).join('')} {currentFolder ? ` / ${currentFolder.originalName}` : ''}
-                    </p>
-                 </div>
-
-                 <div style={{ padding: '16px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.05)' }}>
-                    <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: '4px' }}>Creation Timestamp</p>
-                    <p style={{ fontWeight: '500' }}>{new Date(infoFile.createdAt).toLocaleString()}</p>
-                 </div>
-
-                 <div style={{ padding: '12px', borderRadius: '8px', background: 'rgba(52, 211, 153, 0.1)', border: '1px solid rgba(52, 211, 153, 0.2)', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <ShieldAlert size={16} color="#34d399" />
-                    <span style={{ fontSize: '0.85rem', color: '#34d399' }}>Secured with AES-GCM 256-bit Hardware-Key Encryption</span>
-                 </div>
-              </div>
-
-              <button onClick={() => setInfoFile(null)} className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '12px' }}>Close Inspector</button>
-           </div>
-        </div>
-      )}
-
       {selectedIds.length > 0 && (
         <div 
           className="glass-panel selection-toolbar-sticky" 
@@ -1701,7 +1592,7 @@ const Home = () => {
             animation: 'fadeInUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
           }}
         >
-           <div style={{ display: 'flex', alignItems: 'center', gap: '15px', borderRight: '1px solid var(--border-color)', paddingRight: '16px' }}>
+           <div className="selection-header-mobile" style={{ display: 'flex', alignItems: 'center', gap: '12px', borderRight: '1px solid var(--border-color)', paddingRight: '12px' }}>
                <button 
                  onClick={() => {
                    const allIds = userFiles.map(f => f._id);
@@ -1714,22 +1605,20 @@ const Home = () => {
                    background: 'rgba(59, 130, 246, 0.1)', 
                    border: '1px solid rgba(59, 130, 246, 0.2)', 
                    color: 'var(--accent-primary)', 
-                   fontSize: '0.75rem', 
+                   fontSize: '0.7rem', 
                    fontWeight: '700', 
                    cursor: 'pointer', 
-                   padding: '6px 12px', 
-                   borderRadius: '8px',
+                   padding: '4px 10px', 
+                   borderRadius: '6px',
                    textTransform: 'uppercase',
                    letterSpacing: '0.5px'
                  }}
                >
-                 {userFiles.length > 0 && userFiles.every(f => selectedIds.includes(f._id)) ? 'Deselect Page' : 'Select Page'}
+                 {userFiles.length > 0 && userFiles.every(f => selectedIds.includes(f._id)) ? 'Deselect' : 'All'}
                </button>
-               <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                 <div style={{ background: 'var(--accent-primary)', width: '26px', height: '26px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                    <Check size={14} />
-                 </div>
-                 <span style={{ fontWeight: '700', fontSize: '1.2rem' }}>{selectedIds.length}</span>
+               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="selection-count-mobile" style={{ fontWeight: '700', fontSize: '1rem' }}>{selectedIds.length}</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Selected</span>
                </div>
             </div>
 

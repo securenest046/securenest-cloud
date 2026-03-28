@@ -60,7 +60,7 @@ const Register = () => {
       await axios.post(`${bUrl}/api/auth/sync`, {
           userId: userCredentials.user.uid,
           email: userCredentials.user.email,
-          fullName: userCredentials.user.displayName || 'Vault User'
+          fullName: userCredentials.user.displayName || userCredentials.user.email?.split('@')[0] || 'Authenticated User'
       });
 
       navigate('/home');
@@ -81,7 +81,7 @@ const Register = () => {
     setIsSending(true);
     try {
        // 1. Firebase Auth Creation
-       const userCredentials = await signup(formData.email, formData.password);
+       const userCredentials = await signup(formData.email, formData.password, formData.fullName);
        
         // 2. Deferred Backend Sync (Non-blocking to ensure Dashboard access)
         const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';

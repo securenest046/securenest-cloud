@@ -28,8 +28,12 @@ export const AuthProvider = ({ children }) => {
 
   // Note: The prompt instructed that users can reset password by their 'user-id'.
   // In Firebase, Email acts as the universally unique User ID.
-  const signup = (email, password) => {
-    return createUserWithEmailAndPassword(auth, email, password);
+  const signup = async (email, password, fullName) => {
+    const userCredentials = await createUserWithEmailAndPassword(auth, email, password);
+    if (fullName) {
+        await updateProfile(userCredentials.user, { displayName: fullName });
+    }
+    return userCredentials;
   };
 
   const login = (email, password) => {
@@ -65,10 +69,10 @@ export const AuthProvider = ({ children }) => {
     return reauthenticateWithCredential(user, credential);
   };
 
-  const updateUserProfile = async (data) => {
+  const updateUserProfile = async (fullName) => {
     const user = auth.currentUser;
     if (!user) throw new Error("No authenticated user found.");
-    return updateProfile(user, data);
+    return updateProfile(user, { displayName: fullName });
   };
 
   useEffect(() => {
