@@ -270,7 +270,7 @@ const Home = () => {
     if (selectedIds.length === 0) return;
     
     setPageLoading(true);
-    setLoaderMessage(`Preparing Multi-Binary Archive (${selectedIds.length} nodes)...`);
+    setLoaderMessage(`Preparing Hierarchical Vault Export...`);
     
     try {
       const zipJS = await import("@zip.js/zip.js");
@@ -280,17 +280,41 @@ const Home = () => {
       const zipFileWriter = new zipJS.BlobWriter("application/zip");
       const zipWriter = new zipJS.ZipWriter(zipFileWriter);
       
+      let allFilesToDownload = [];
+
       for (const id of selectedIds) {
-        const file = userFiles.find(f => f._id === id);
-        if (!file || file.isFolder) continue; 
-        
-        setLoaderMessage(`Decrypting ${file.originalName}...`);
-        const response = await fetch(`${bUrl}/api/storage/proxy/${file._id}`);
-        const rawBuffer = await response.arrayBuffer();
+        const item = userFiles.find(f => f._id === id);
+        if (!item) continue;
+
+        if (item.isFolder) {
+          setLoaderMessage(`Discovery Pass: ${item.originalName}...`);
+          try {
+            const response = await axios.get(`${bUrl}/api/storage/files/${currentUser.uid}/recursive/${item._id}`);
+            if (response.data.success) {
+              const nested = response.data.files.map(f => ({ ...f, zipPath: `${item.originalName}/${f.relativePath}` }));
+              allFilesToDownload = allFilesToDownload.concat(nested);
+            }
+          } catch (discoverError) {
+            console.error("Recursive discovery failed for:", item.originalName, discoverError);
+          }
+        } else {
+          allFilesToDownload.push({ ...item, zipPath: item.originalName });
+        }
+      }
+
+      if (allFilesToDownload.length === 0) {
+        throw new Error("No ingestible identities discovered in selection.");
+      }
+
+      for (const file of allFilesToDownload) {
+        setLoaderMessage(`Decrypting: ${file.zipPath}...`);
+        // Use axios with arraybuffer for consistent handling
+        const response = await axios.get(`${bUrl}/api/storage/proxy/${file._id}`, { responseType: 'arraybuffer' });
+        const rawBuffer = response.data;
         const ivToUse = typeof file.iv === 'string' ? JSON.parse(file.iv) : file.iv;
         const decryptedBlob = await decryptFileForDownload(rawBuffer, vaultKey, ivToUse, file.mimeType);
         
-        await zipWriter.add(file.originalName, new zipJS.Uint8ArrayReader(new Uint8Array(await decryptedBlob.arrayBuffer())));
+        await zipWriter.add(file.zipPath, new zipJS.Uint8ArrayReader(new Uint8Array(await decryptedBlob.arrayBuffer())));
       }
       
       await zipWriter.close();
@@ -299,14 +323,16 @@ const Home = () => {
       const link = document.createElement("a");
       link.href = url;
       link.download = `SecureVault_Export_${new Date().getTime()}.zip`;
+      document.body.appendChild(link);
       link.click();
+      document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      showAlert("Export Certified", "Multi-binary archive successfully generated and transmitted.");
+      showAlert("Transmission Finalized", `Hierarchical archive constructed for ${allFilesToDownload.length} identities.`);
       setSelectedIds([]);
     } catch (error) {
       console.error("Bulk Download Failure", error);
-      showAlert("Archive Error", "Failed to generate multi-binary archive.");
+      showAlert("Transmission Error", "Failed to compile cryptographic archive.");
     } finally {
       setPageLoading(false);
       setLoaderMessage("Accessing Secure Vault...");
@@ -1344,44 +1370,44 @@ const Home = () => {
             left: '50%', 
             transform: 'translateX(-50%)', 
             zIndex: 10001, 
-            padding: '16px 24px', 
-            borderRadius: '20px', 
+            padding: '10px 18px', 
+            borderRadius: '16px', 
             display: 'flex', 
             alignItems: 'center', 
-            gap: '24px', 
+            gap: '16px', 
             border: '1px solid var(--accent-primary)',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+            boxShadow: '0 20px 40px rgba(0,0,0,0.4)',
             background: 'rgba(15, 23, 42, 0.95)',
             backdropFilter: 'blur(20px)',
             animation: 'fadeInUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
           }}
         >
-           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderRight: '1px solid var(--border-color)', paddingRight: '24px' }}>
-              <div style={{ background: 'var(--accent-primary)', width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
-                 <Check size={16} />
+           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', borderRight: '1px solid var(--border-color)', paddingRight: '16px' }}>
+              <div style={{ background: 'var(--accent-primary)', width: '26px', height: '26px', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                 <Check size={14} />
               </div>
-              <span style={{ fontWeight: '700', fontSize: '1.1rem' }}>{selectedIds.length} <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>Identities Targeted</span></span>
+              <span style={{ fontWeight: '700', fontSize: '1.2rem' }}>{selectedIds.length}</span>
            </div>
 
-           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
               <button 
                 onClick={handleBulkDownload} 
                 className="btn-primary" 
-                style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', width: 'auto' }}
+                style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
               >
-                 <Download size={16} /> Download ZIP
+                 <Download size={14} /> Download ZIP
               </button>
               <button 
                 onClick={handleBulkDelete} 
                 className="btn-primary" 
-                style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--danger)', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', width: 'auto' }}
+                style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--danger)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
               >
-                 <Trash2 size={16} /> Delete Permanently
+                 <Trash2 size={14} /> Delete
               </button>
               <button 
                 onClick={() => setSelectedIds([])} 
                 className="btn-primary" 
-                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '10px 20px', fontSize: '0.9rem', width: 'auto' }}
+                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '8px 16px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
               >
                  Cancel
               </button>

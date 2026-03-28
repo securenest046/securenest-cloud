@@ -162,30 +162,41 @@ router.get('/files/:userId', async (req, res) => {
     }
 });
 
-// Decommission file from vault registry
+// Decommission file or folder recursively from vault registry
 router.delete('/:fileId', async (req, res) => {
     try {
-        const file = await FileMeta.findById(req.params.fileId);
-        if (!file) return res.status(404).json({ success: false, message: 'Identity pointer not found.' });
+        const targetId = req.params.fileId;
+        
+        const decommissionRecursive = async (id) => {
+            const item = await FileMeta.findById(id);
+            if (!item) return;
 
-        // Safety: Block folder deletion if it contains child identities
-        if (file.isFolder) {
-            const hasChildren = await FileMeta.exists({ parentId: file._id });
-            if (hasChildren) {
-                return res.status(400).json({ success: false, message: 'Vault directory is not empty. Decommission nested identities first.' });
+            if (item.isFolder) {
+                const children = await FileMeta.find({ parentId: id });
+                for (const child of children) {
+                    await decommissionRecursive(child._id);
+                }
+            } else {
+                // Decrement user storage footprint for files
+                await User.findOneAndUpdate(
+                    { userId: item.userId }, 
+                    { $inc: { totalStorageUsed: -item.fileSize } }
+                );
             }
-        }
 
-        // Atomically decrement user storage footprint
-        await User.findOneAndUpdate({ userId: file.userId }, { $inc: { totalStorageUsed: -file.fileSize } });
+            // Remove metadata from registry
+            await FileMeta.findByIdAndDelete(id);
+        };
 
-        // Purge metadata from registry
-        await FileMeta.findByIdAndDelete(req.params.fileId);
+        const topLevelItem = await FileMeta.findById(targetId);
+        if (!topLevelItem) return res.status(404).json({ success: false, message: 'Identity pointer not found.' });
 
-        res.status(200).json({ success: true, message: 'File decommissioned successfully.' });
+        await decommissionRecursive(targetId);
+
+        res.status(200).json({ success: true, message: 'Vault identity and all nested children decommissioned successfully.' });
     } catch (error) {
         console.error("Decommission Error:", error);
-        res.status(500).json({ success: false, error: 'Registry purge failed.' });
+        res.status(500).json({ success: false, error: 'Registry purge failed.', detail: error.message });
     }
 });
 
@@ -202,6 +213,34 @@ router.patch('/rename/:fileId', async (req, res) => {
     } catch (error) {
         console.error("Rename Error:", error);
         res.status(500).json({ success: false, error: 'Failed to rename vault identity.' });
+    }
+});
+
+// Fetch all nested metadata recursively for bulk operations (e.g., ZIP download)
+router.get('/files/:userId/recursive/:folderId', async (req, res) => {
+    try {
+        const { userId, folderId } = req.params;
+        
+        const resolveRecursive = async (id, currentPath = "") => {
+            let files = [];
+            const items = await FileMeta.find({ userId, parentId: id });
+            
+            for (const item of items) {
+                if (item.isFolder) {
+                    const nested = await resolveRecursive(item._id, `${currentPath}${item.originalName}/`);
+                    files = files.concat(nested);
+                } else {
+                    files.push({ ...item.toObject(), relativePath: `${currentPath}${item.originalName}` });
+                }
+            }
+            return files;
+        };
+
+        const allNestedFiles = await resolveRecursive(folderId);
+        res.status(200).json({ success: true, files: allNestedFiles });
+    } catch (error) {
+        console.error("Recursive discovery error:", error);
+        res.status(500).json({ success: false, error: 'Failed to map nested vault hierarchy.' });
     }
 });
 
