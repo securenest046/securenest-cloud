@@ -278,7 +278,7 @@ const Home = () => {
       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
       
       const zipFileWriter = new zipJS.BlobWriter("application/zip");
-      const zipWriter = new zipJS.ZipWriter(zipFileWriter);
+      const zipWriter = new zipJS.ZipWriter(zipFileWriter, { password: vaultKey });
       
       let allFilesToDownload = [];
 
