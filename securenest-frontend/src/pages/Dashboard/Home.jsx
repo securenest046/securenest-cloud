@@ -1628,28 +1628,28 @@ const Home = () => {
                  className="btn-primary" 
                  style={{ background: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.3)', color: 'var(--accent-primary)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
                >
-                  <UserPlus size={14} /> Group & Move
+                  <UserPlus size={14} /> <span className="hide-on-mobile-text">Group & Move</span>
                </button>
                <button 
                  onClick={handleBulkDownload} 
                 className="btn-primary" 
                 style={{ padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
               >
-                 <Download size={14} /> Download ZIP
+                 <Download size={14} /> <span className="hide-on-mobile-text">Download ZIP</span>
               </button>
               <button 
                 onClick={handleBulkDelete} 
                 className="btn-primary" 
                 style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--danger)', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
               >
-                 <Trash2 size={14} /> Delete
+                 <Trash2 size={14} /> <span className="hide-on-mobile-text">Delete</span>
               </button>
               <button 
                 onClick={() => setSelectedIds([])} 
                 className="btn-primary" 
-                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '8px 16px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px' }}
+                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '8px 16px', fontSize: '0.85rem', width: 'auto', borderRadius: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}
               >
-                 Cancel
+                 <X size={14} /> <span className="hide-on-mobile-text">Cancel</span>
               </button>
            </div>
         </div>
