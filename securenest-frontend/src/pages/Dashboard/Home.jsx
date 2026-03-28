@@ -385,6 +385,7 @@ const Home = () => {
      return Math.min(val, 100).toFixed(5);
    };
    const overallUsed = getPercentage(totalStorageUsed, MAX_STORAGE);
+   const overallUsedDisplay = parseFloat(overallUsed) > 0 && parseFloat(overallUsed) < 0.1 ? parseFloat(overallUsed).toFixed(3) : parseFloat(overallUsed).toFixed(2);
    
    const getCategoryTheme = (type) => {
       switch(type) {
@@ -812,10 +813,11 @@ const Home = () => {
              </div>
           </div>
           
-          <div style={{ position: 'relative', width: '220px', height: '220px', margin: '0 auto 40px auto', borderRadius: '50%', background: conicGradientStr, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 0 20px rgba(0,0,0,0.5)' }}>
-             <div style={{ width: '170px', height: '170px', borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(0,0,0,0.5)' }}>
-                <span style={{ fontSize: '2.2rem', fontWeight: '800', background: 'linear-gradient(135deg, #fff, var(--text-muted))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{overallUsed}%</span>
-                <span style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500' }}>of Free 50 GB</span>
+          <div style={{ position: 'relative', width: '220px', height: '220px', margin: '0 auto 40px auto', borderRadius: '50%', background: conicGradientStr, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 30px rgba(0,0,0,0.5)', overflow: 'hidden' }}>
+             {/* Mask to create ring effect */}
+             <div style={{ width: '185px', height: '185px', borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', boxShadow: 'inset 0 0 15px rgba(0,0,0,0.8)', zIndex: 2 }}>
+                <span style={{ fontSize: '1.6rem', fontWeight: '800', background: 'linear-gradient(135deg, #fff, var(--text-muted))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', letterSpacing: '-0.5px' }}>{overallUsedDisplay}%</span>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontWeight: '500', opacity: 0.8 }}>of Free 50 GB</span>
              </div>
           </div>
 
