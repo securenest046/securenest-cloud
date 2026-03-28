@@ -62,22 +62,32 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     }
 });
 
-// Create Folder Route
+// Create Folder Route (Idempotent Find-or-Create)
 router.post('/folder', async (req, res) => {
     try {
         const { userId, originalName, parentId } = req.body;
         
-        const newFolder = new FileMeta({
-            userId,
-            originalName,
-            fileSize: 0,
-            mimeType: 'folder',
-            isFolder: true,
-            parentId: parentId || null
+        // Atomic check for existing directory container
+        let folder = await FileMeta.findOne({ 
+            userId, 
+            originalName, 
+            parentId: parentId || null, 
+            isFolder: true 
         });
 
-        await newFolder.save();
-        res.status(200).json({ success: true, folder: newFolder });
+        if (!folder) {
+            folder = new FileMeta({
+                userId,
+                originalName,
+                fileSize: 0,
+                mimeType: 'folder',
+                isFolder: true,
+                parentId: parentId || null
+            });
+            await folder.save();
+        }
+
+        res.status(200).json({ success: true, folder });
     } catch (error) {
         console.error("Folder Creation Error:", error);
         res.status(500).json({ success: false, error: 'Failed to generate vault directory.' });
