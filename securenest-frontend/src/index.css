@@ -150,12 +150,28 @@ body {
     h3 { font-size: 1.1rem !important; }
 
     .user-identity-text {
-       max-width: 140px;
+       max-width: 100px; /* Reduced from 140px */
        white-space: nowrap;
        overflow: hidden;
        text-overflow: ellipsis;
        display: inline-block;
        vertical-align: middle;
+    }
+
+    .identity-box {
+       padding: 6px 12px !important;
+       gap: 8px !important;
+       max-width: 160px !important;
+    }
+
+    .vault-logo-text {
+       font-size: 1.1rem !important; /* Scaled down corporate title */
+    }
+
+    @media (max-width: 400px) {
+        .vault-logo-text { display: none; } /* Hide text on ultra-small screens to prioritize identity */
+        .identity-box { max-width: 140px !important; }
+        .user-identity-text { max-width: 80px !important; }
     }
 }
 
