@@ -368,60 +368,81 @@ const Home = () => {
 
 
   // Real-Time Storage Calculations Context
-  const getPercentage = (used, max) => {
-    const val = (used / max) * 100;
-    if (used > 0 && val < 0.1) return val.toFixed(3);
-    return Math.min(val, 100).toFixed(1);
-  };
-  const overallUsed = getPercentage(totalStorageUsed, MAX_STORAGE);
-  
-  const getCategoryTheme = (type) => {
-     switch(type) {
-         case 'Images': return { color: '#3b82f6', shadow: 'rgba(59, 130, 246, 0.5)' };
-         case 'Videos': return { color: '#10b981', shadow: 'rgba(16, 185, 129, 0.5)' };
-         case 'Documents': return { color: '#f59e0b', shadow: 'rgba(245, 158, 11, 0.5)' };
-         case 'PDFs': return { color: '#ef4444', shadow: 'rgba(239, 68, 68, 0.5)' };
-         case 'Audio': return { color: '#8b5cf6', shadow: 'rgba(139, 92, 246, 0.5)' };
-         case 'Archives': return { color: '#06b6d4', shadow: 'rgba(6, 182, 212, 0.5)' };
-         default: return { color: '#64748b', shadow: 'rgba(100, 116, 139, 0.5)' };
-     }
-  };
+   const formatPreciseSize = (bytes) => {
+      if (bytes === 0) return '0.00000 KB';
+      const kb = bytes / 1024;
+      if (kb < 1024) return `${kb.toFixed(5)} KB`;
+      const mb = kb / 1024;
+      if (mb < 1024) return `${mb.toFixed(5)} MB`;
+      const gb = mb / 1024;
+      return `${gb.toFixed(5)} GB`;
+   };
 
-  const dynamicCategories = React.useMemo(() => {
-      let store = {};
-      userFiles.forEach(f => {
-          let type = 'Others';
-          const mime = (f.mimeType || '').toLowerCase();
-          if (mime.startsWith('image/')) type = 'Images';
-          else if (mime.startsWith('video/')) type = 'Videos';
-          else if (mime.startsWith('audio/')) type = 'Audio';
-          else if (mime.includes('pdf')) type = 'PDFs';
-          else if (mime.includes('document') || mime.includes('msword') || mime.includes('text')) type = 'Documents';
-          else if (mime.includes('zip') || mime.includes('compressed') || mime.includes('tar') || mime.includes('rar')) type = 'Archives';
-          
-          store[type] = (store[type] || 0) + f.fileSize;
-      });
-      return Object.entries(store)
-          .map(([name, size]) => ({ name, size, percent: totalStorageUsed ? ((size / totalStorageUsed) * 100).toFixed(1) : '0.0', theme: getCategoryTheme(name) }))
-          .sort((a,b) => b.size - a.size); // Sort logically by size hierarchy descending
-  }, [userFiles, totalStorageUsed]);
+   // Real-Time Storage Calculations Context
+   const getPercentage = (used, max) => {
+     const val = (used / max) * 100;
+     if (used > 0 && val < 0.1) return val.toFixed(5);
+     return Math.min(val, 100).toFixed(5);
+   };
+   const overallUsed = getPercentage(totalStorageUsed, MAX_STORAGE);
+   
+   const getCategoryTheme = (type) => {
+      switch(type) {
+          case 'Images': return { color: '#3b82f6', shadow: 'rgba(59, 130, 246, 0.5)' };
+          case 'Videos': return { color: '#10b981', shadow: 'rgba(16, 185, 129, 0.5)' };
+          case 'Documents': return { color: '#f59e0b', shadow: 'rgba(245, 158, 11, 0.5)' };
+          case 'PDFs': return { color: '#ef4444', shadow: 'rgba(239, 68, 68, 0.5)' };
+          case 'Audio': return { color: '#8b5cf6', shadow: 'rgba(139, 92, 246, 0.5)' };
+          case 'Archives': return { color: '#06b6d4', shadow: 'rgba(6, 182, 212, 0.5)' };
+          default: return { color: '#64748b', shadow: 'rgba(100, 116, 139, 0.5)' };
+      }
+   };
 
-  const topCategories = showAllCategories ? dynamicCategories : dynamicCategories.slice(0, 3);
-  const hiddenCategoriesCount = Math.max(0, dynamicCategories.length - 3);
+   const dynamicCategories = React.useMemo(() => {
+       let store = {};
+       userFiles.forEach(f => {
+           let type = 'Others';
+           const mime = (f.mimeType || '').toLowerCase();
+           if (mime.startsWith('image/')) type = 'Images';
+           else if (mime.startsWith('video/')) type = 'Videos';
+           else if (mime.startsWith('audio/')) type = 'Audio';
+           else if (mime.includes('pdf')) type = 'PDFs';
+           else if (mime.includes('document') || mime.includes('msword') || mime.includes('text')) type = 'Documents';
+           else if (mime.includes('zip') || mime.includes('compressed') || mime.includes('tar') || mime.includes('rar')) type = 'Archives';
+           
+           store[type] = (store[type] || 0) + f.fileSize;
+       });
+       return Object.entries(store)
+           .map(([name, size]) => ({ 
+               name, 
+               size, 
+               percent: ((size / MAX_STORAGE) * 100).toFixed(5), // Precision relative to 50 GB
+               theme: getCategoryTheme(name) 
+           }))
+           .sort((a,b) => b.size - a.size);
+   }, [userFiles, totalStorageUsed]);
 
-  let conicStops = [];
-  let currentDegree = 0;
-  if (totalStorageUsed === 0) {
-      conicStops.push(`rgba(255,255,255,0.05) 0deg`);
-  } else {
-      dynamicCategories.forEach(cat => {
-          const spanDegrees = (cat.size / totalStorageUsed) * 360;
-          conicStops.push(`${cat.theme.color} ${currentDegree}deg`);
-          conicStops.push(`${cat.theme.color} ${currentDegree + spanDegrees}deg`);
-          currentDegree += spanDegrees;
-      });
-  }
-  const conicGradientStr = `conic-gradient(${conicStops.join(', ')})`;
+   const topCategories = showAllCategories ? dynamicCategories : dynamicCategories.slice(0, 3);
+   const hiddenCategoriesCount = Math.max(0, dynamicCategories.length - 3);
+
+   let conicStops = [];
+   let currentDegree = 0;
+   
+   if (dynamicCategories.length === 0) {
+       conicStops.push(`rgba(255,255,255,0.05) 0deg`);
+   } else {
+       dynamicCategories.forEach(cat => {
+           const spanDegrees = (cat.size / MAX_STORAGE) * 360;
+           conicStops.push(`${cat.theme.color} ${currentDegree}deg`);
+           conicStops.push(`${cat.theme.color} ${currentDegree + spanDegrees}deg`);
+           currentDegree += spanDegrees;
+       });
+       // Represent empty capacity as no-color segment
+       conicStops.push(`rgba(255,255,255,0.05) ${currentDegree}deg`);
+       conicStops.push(`rgba(255,255,255,0.05) 360deg`);
+   }
+   
+   const conicGradientStr = `conic-gradient(${conicStops.join(', ')})`;
 
   // Advanced Matrix Sorting Process
   const sortedFiles = [...userFiles].sort((a, b) => {
@@ -803,12 +824,17 @@ const Home = () => {
                <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic', padding: '16px 0' }}>No categorical data stored yet...</div>
             ) : (
                 topCategories.map((cat, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                        <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: cat.theme.color, boxShadow: `0 0 10px ${cat.theme.shadow}` }}></div>
-                        <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{cat.name}</span>
+                    <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: cat.theme.color, boxShadow: `0 0 10px ${cat.theme.shadow}` }}></div>
+                          <span style={{ fontSize: '1rem', color: 'var(--text-main)' }}>{cat.name}</span>
+                        </div>
+                        <span style={{ fontWeight: '600', fontSize: '1rem' }}>{cat.percent}%</span>
                       </div>
-                      <span style={{ fontWeight: '600', fontSize: '1rem' }}>{cat.percent}%</span>
+                      <div style={{ paddingLeft: '26px' }}>
+                        <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)', fontFamily: 'monospace' }}>{formatPreciseSize(cat.size)}</span>
+                      </div>
                     </div>
                 ))
             )}
@@ -831,7 +857,7 @@ const Home = () => {
                 <div style={{ width: '14px', height: '14px', borderRadius: '4px', background: 'rgba(255,255,255,0.05)' }}></div>
                 <span style={{ fontSize: '1rem', color: 'var(--text-muted)' }}>Free Space</span>
               </div>
-               <span style={{ fontWeight: '600', fontSize: '1rem', color: 'var(--text-muted)' }}>{parseFloat(overallUsed) > 0 && parseFloat(overallUsed) < 0.1 ? (100 - parseFloat(overallUsed)).toFixed(3) : (100 - parseFloat(overallUsed)).toFixed(1)}%</span>
+               <span style={{ fontWeight: '600', fontSize: '1rem', color: 'var(--text-muted)' }}>{ (100 - parseFloat(overallUsed)).toFixed(5) }%</span>
             </div>
           </div>
         </div>
