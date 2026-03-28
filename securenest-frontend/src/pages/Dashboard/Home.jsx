@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
-import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus } from 'lucide-react';
+import { Upload, File, Folder, Image as ImageIcon, Video, FileText, User, Settings as SettingsIcon, LogOut, Key, MoreVertical, Download, Edit2, Info, Grid, List as ListIcon, LayoutGrid, Maximize2, RefreshCw, Copy, Check, ChevronLeft, ChevronDown, X, PieChart, Trash2, Trash, ShieldAlert, Mail, Smartphone, Eye, EyeOff, Fingerprint, Globe, UserPlus } from 'lucide-react';
 import FileViewer from '../../components/FileViewer';
 import Loader from '../../components/Loader';
 import { useDialog } from '../../context/DialogContext';
@@ -24,7 +24,10 @@ const Home = () => {
   const [vaultKey, setVaultKey] = useState("Loading...");
   
   const fileInputRef = React.useRef(null);
+  const folderInputRef = React.useRef(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [showUploadMenu, setShowUploadMenu] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState({ current: 0, total: 0 });
   const [pageLoading, setPageLoading] = useState(true);
   const [loaderMessage, setLoaderMessage] = useState("Accessing Secure Vault...");
 
@@ -227,50 +230,128 @@ const Home = () => {
   };
 
   const handleUploadSelectedFile = async (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
-      if (!vaultKey || vaultKey === 'Loading...') {
-          showAlert("Security Constraint", "Cryptographic Vault Key is not ready. Please try again in 2 seconds.");
-          return;
+    if (!vaultKey || vaultKey === 'Loading...') {
+      showAlert("Security Constraint", "Cryptographic Vault Key is not ready. Please try again in 2 seconds.");
+      return;
+    }
+
+    setIsUploading(true);
+    setUploadProgress({ current: 0, total: files.length });
+    
+    try {
+      const { encryptFileForUpload } = await import('../../utils/cryptoFunctions');
+      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadProgress(prev => ({ ...prev, current: i + 1 }));
+        
+        // Execute AES-GCM Client-Side Encryption
+        const { cipherBlob, iv } = await encryptFileForUpload(file, vaultKey);
+
+        const formData = new FormData();
+        formData.append('file', cipherBlob, file.name);
+        formData.append('userId', currentUser.uid);
+        formData.append('originalName', file.name);
+        formData.append('mimeType', file.type || 'application/octet-stream');
+        formData.append('ivArray', JSON.stringify(iv));
+        if (currentFolder) formData.append('parentId', currentFolder._id);
+
+        const { data } = await axios.post(`${bUrl}/api/storage/upload`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (data.success) {
+          setUserFiles(prev => [data.file, ...prev]);
+          setTotalStorageUsed(prev => prev + data.file.fileSize);
+        }
       }
+    } catch (err) {
+      console.error("Bulk Upload Error", err);
+      showAlert("Transmission Error", "One or more files failed to encrypt or upload.");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
+      if (fileInputRef.current) fileInputRef.current.value = null;
+    }
+  };
 
-      setIsUploading(true);
-      try {
-          // Dynamic import of cryptography module
-          const { encryptFileForUpload } = await import('../../utils/cryptoFunctions');
-          
-          // Execute AES-GCM Client-Side Encryption
-          const { cipherBlob, iv } = await encryptFileForUpload(file, vaultKey);
+  const handleUploadSelectedFolder = async (e) => {
+    const files = Array.from(e.target.files);
+    if (files.length === 0) return;
 
-          // Prepare Multipart Engine for Axios
-          const formData = new FormData();
-          formData.append('file', cipherBlob, file.name);
-          formData.append('userId', currentUser.uid);
-          formData.append('originalName', file.name);
-          formData.append('mimeType', file.type || 'application/octet-stream');
-          formData.append('ivArray', JSON.stringify(iv));
-          if (currentFolder) formData.append('parentId', currentFolder._id);
+    if (!vaultKey || vaultKey === 'Loading...') {
+      showAlert("Security Constraint", "Cryptographic Vault Key is not ready.");
+      return;
+    }
 
-          /* Upload fully locally AES encrypted payload to generic backend pipe natively */
-          const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/storage/upload`, formData, {
-              headers: { 'Content-Type': 'multipart/form-data' }
-          });
+    setIsUploading(true);
+    setUploadProgress({ current: 0, total: files.length });
+    
+    try {
+      const { encryptFileForUpload } = await import('../../utils/cryptoFunctions');
+      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      const folderIdMap = { "": currentFolder ? currentFolder._id : null };
 
-          if (data.success) {
-              // Immediately inject new node into telemetry UI
-              setUserFiles(prev => [data.file, ...prev]);
-              setTotalStorageUsed(prev => prev + data.file.fileSize);
-          } else {
-              showAlert("Transmission Denied", "The upload gateway declined the encrypted transmission.");
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadProgress(prev => ({ ...prev, current: i + 1 }));
+
+        const pathParts = file.webkitRelativePath.split('/');
+        const fileName = pathParts.pop();
+        let parentPath = "";
+        let currentParentId = currentFolder ? currentFolder._id : null;
+
+        for (const folderName of pathParts) {
+          const fullPath = parentPath ? `${parentPath}/${folderName}` : folderName;
+          if (!folderIdMap[fullPath]) {
+            const { data } = await axios.post(`${bUrl}/api/storage/folder`, {
+              userId: currentUser.uid,
+              originalName: folderName,
+              parentId: currentParentId
+            });
+            if (data.success) {
+              folderIdMap[fullPath] = data.folder._id;
+              if (currentParentId === (currentFolder ? currentFolder._id : null)) {
+                setUserFiles(prev => [data.folder, ...prev]);
+              }
+            } else { throw new Error(`Folder Error: ${folderName}`); }
           }
-      } catch (err) {
-          console.error("Upload Error", err);
-          showAlert("Crypto Engine Failure", "Critical Error during AES-GCM encryption or transmission.");
-      } finally {
-          setIsUploading(false);
-          if (fileInputRef.current) fileInputRef.current.value = null;
+          currentParentId = folderIdMap[fullPath];
+          parentPath = fullPath;
+        }
+
+        const { cipherBlob, iv } = await encryptFileForUpload(file, vaultKey);
+        const formData = new FormData();
+        formData.append('file', cipherBlob, fileName);
+        formData.append('userId', currentUser.uid);
+        formData.append('originalName', fileName);
+        formData.append('mimeType', file.type || 'application/octet-stream');
+        formData.append('ivArray', JSON.stringify(iv));
+        formData.append('parentId', currentParentId || 'null');
+
+        const { data } = await axios.post(`${bUrl}/api/storage/upload`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
+
+        if (data.success) {
+          if (currentParentId === (currentFolder ? currentFolder._id : null)) {
+            setUserFiles(prev => [data.file, ...prev]);
+          }
+          setTotalStorageUsed(prev => prev + data.file.fileSize);
+        }
       }
+    } catch (err) {
+      console.error("Folder Upload Error", err);
+      showAlert("Recursion Error", "Failed to upload folder contents.");
+    } finally {
+      setIsUploading(false);
+      setUploadProgress({ current: 0, total: 0 });
+      if (folderInputRef.current) folderInputRef.current.value = null;
+    }
   };
 
   const handleFileClick = async (file) => {
@@ -600,11 +681,27 @@ const Home = () => {
                    <button onClick={() => setViewMode('list')} style={{ background: viewMode === 'list' ? 'var(--accent-primary)' : 'transparent', border: 'none', padding: '8px 12px', color: '#fff', cursor: 'pointer', flex: 1 }}><ListIcon size={18} /></button>
                 </div>
 
-                <input type="file" ref={fileInputRef} style={{ display: 'none' }} onChange={handleUploadSelectedFile} />
-                <button className="btn-primary" style={{ width: 'auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', whiteSpace: 'nowrap', opacity: isUploading ? 0.7 : 1, cursor: isUploading ? 'not-allowed' : 'pointer' }} onClick={() => !isUploading && fileInputRef.current?.click()} disabled={isUploading}>
-                   {isUploading ? <RefreshCw size={18} className="animate-spin" style={{ animation: 'spin 1.5s linear infinite' }} /> : <Upload size={18} />} 
-                   {isUploading ? 'Encrypting...' : 'Upload'}
-                </button>
+                <input type="file" ref={fileInputRef} multiple style={{ display: 'none' }} onChange={handleUploadSelectedFile} />
+                <input type="file" ref={folderInputRef} webkitdirectory="" style={{ display: 'none' }} onChange={handleUploadSelectedFolder} />
+
+                <div style={{ position: 'relative' }}>
+                   <button className="btn-primary" style={{ width: 'auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', whiteSpace: 'nowrap', opacity: isUploading ? 0.8 : 1 }} onClick={() => !isUploading && setShowUploadMenu(!showUploadMenu)} disabled={isUploading}>
+                      {isUploading ? <RefreshCw size={18} className="animate-spin" /> : <Upload size={18} />} 
+                      {isUploading ? `Uploding ${uploadProgress.current}/${uploadProgress.total}...` : 'Upload'}
+                      <ChevronDown size={14} style={{ marginLeft: '4px', transform: showUploadMenu ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }} />
+                   </button>
+
+                   {showUploadMenu && !isUploading && (
+                     <div className="glass-panel" style={{ position: 'absolute', top: '100%', left: 0, width: '180px', marginTop: '8px', padding: '8px', zIndex: 1000, background: 'rgba(15, 23, 42, 0.98)', border: '1px solid var(--border-color)', borderRadius: '12px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', animation: 'fadeIn 0.2s ease-out' }}>
+                        <button onClick={() => { fileInputRef.current?.click(); setShowUploadMenu(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', fontSize: '0.9rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(59,130,246,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
+                           <File size={16} color="#3b82f6" /> Upload Files
+                        </button>
+                        <button onClick={() => { folderInputRef.current?.click(); setShowUploadMenu(false); }} style={{ width: '100%', display: 'flex', alignItems: 'center', gap: '10px', padding: '10px', background: 'transparent', border: 'none', color: '#fff', cursor: 'pointer', borderRadius: '8px', fontSize: '0.9rem' }} onMouseOver={e => e.currentTarget.style.background='rgba(59,130,246,0.1)'} onMouseOut={e => e.currentTarget.style.background='transparent'}>
+                           <Folder size={16} color="#f59e0b" /> Upload Folder
+                        </button>
+                     </div>
+                   )}
+                </div>
 
                 <button onClick={handleCreateFolder} style={{ width: 'auto', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'center', background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', borderRadius: '8px', color: '#fff', cursor: 'pointer', transition: 'all 0.2s' }} onMouseOver={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'} onMouseOut={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}>
                    <Folder size={18} />
