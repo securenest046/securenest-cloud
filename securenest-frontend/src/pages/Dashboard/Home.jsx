@@ -68,6 +68,7 @@ const Home = () => {
   const [infoFile, setInfoFile] = useState(null);
   const [viewingFile, setViewingFile] = useState(null);
   const [blobCache, setBlobCache] = useState({});
+  const [selectedIds, setSelectedIds] = useState([]);
 
   const [copied, setCopied] = useState(false);
   const handleCopy = () => {
@@ -227,6 +228,88 @@ const Home = () => {
       const newStack = folderStack.slice(0, index + 1);
       setCurrentFolder(newStack[newStack.length - 1]);
       setFolderStack(newStack);
+    }
+  };
+
+  const toggleSelect = (e, fileId) => {
+    e.stopPropagation();
+    setSelectedIds(prev => 
+      prev.includes(fileId) ? prev.filter(id => id !== fileId) : [...prev, fileId]
+    );
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedIds.length === 0) return;
+    
+    showConfirm(
+      "Purge Identified Identities?", 
+      `Are you sure you want to permanently decommission ${selectedIds.length} items from the vault? This action is irreversible.`, 
+      async () => {
+        setPageLoading(true);
+        setLoaderMessage(`Decommissioning ${selectedIds.length} identities...`);
+        try {
+          const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+          for (const id of selectedIds) {
+            await axios.delete(`${bUrl}/api/storage/${id}`);
+          }
+          setUserFiles(prev => prev.filter(f => !selectedIds.includes(f._id)));
+          setSelectedIds([]);
+          showAlert("Vault Purged", "The selected identities have been successfully decommissioned.");
+        } catch (error) {
+          console.error("Bulk Delete Failure", error);
+          showAlert("Registry Error", "One or more identities failed to decommission properly.");
+        } finally {
+          setPageLoading(false);
+          setLoaderMessage("Accessing Secure Vault...");
+        }
+      }
+    );
+  };
+
+  const handleBulkDownload = async () => {
+    if (selectedIds.length === 0) return;
+    
+    setPageLoading(true);
+    setLoaderMessage(`Preparing Multi-Binary Archive (${selectedIds.length} nodes)...`);
+    
+    try {
+      const zipJS = await import("@zip.js/zip.js");
+      const { decryptFileForDownload } = await import('../../utils/cryptoFunctions');
+      const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+      
+      const zipFileWriter = new zipJS.BlobWriter("application/zip");
+      const zipWriter = new zipJS.ZipWriter(zipFileWriter);
+      
+      for (const id of selectedIds) {
+        const file = userFiles.find(f => f._id === id);
+        if (!file || file.isFolder) continue; 
+        
+        setLoaderMessage(`Decrypting ${file.originalName}...`);
+        const response = await fetch(`${bUrl}/api/storage/proxy/${file._id}`);
+        const rawBuffer = await response.arrayBuffer();
+        const ivToUse = typeof file.iv === 'string' ? JSON.parse(file.iv) : file.iv;
+        const decryptedBlob = await decryptFileForDownload(rawBuffer, vaultKey, ivToUse, file.mimeType);
+        
+        await zipWriter.add(file.originalName, new zipJS.Uint8ArrayReader(new Uint8Array(await decryptedBlob.arrayBuffer())));
+      }
+      
+      await zipWriter.close();
+      const zipBlob = await zipFileWriter.getData();
+      const url = URL.createObjectURL(zipBlob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `SecureVault_Export_${new Date().getTime()}.zip`;
+      link.click();
+      URL.revokeObjectURL(url);
+      
+      showAlert("Export Certified", "Multi-binary archive successfully generated and transmitted.");
+      setSelectedIds([]);
+    } catch (error) {
+      console.error("Bulk Download Failure", error);
+      showAlert("Archive Error", "Failed to generate multi-binary archive.");
+    } finally {
+      setPageLoading(false);
+      setLoaderMessage("Accessing Secure Vault...");
     }
   };
 
@@ -791,7 +874,7 @@ const Home = () => {
               {viewMode === 'list' ? (
                  <div className="file-grid-adaptive" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                       {sortedFiles.map(file => (
-                         <div key={file._id} onClick={() => handleFileClick(file)} className="file-card-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: '12px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap', position: 'relative' }} onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 1); }} onMouseOut={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; if (activeMenu !== file._id) e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 0); }}>
+                         <div key={file._id} onClick={() => handleFileClick(file)} className="file-card-group" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--bg-card)', padding: '16px 24px', borderRadius: '12px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: 'all 0.2s', flexWrap: 'wrap', position: 'relative' }} onMouseOver={(e) => { e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 1); }} onMouseOut={(e) => { e.currentTarget.style.background = 'var(--bg-card)'; if (activeMenu !== file._id && selectedIds.length === 0) e.currentTarget.querySelectorAll('.card-actions').forEach(el => el.style.opacity = 0); }}>
                            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flex: '1 1 auto', minWidth: '150px' }}>
                               <div style={{ width: '30px', height: '30px', borderRadius: '6px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: file.isFolder ? 'rgba(245,158,11,0.1)' : 'rgba(59,130,246,0.1)' }}>
                                  {file.isFolder ? (
@@ -823,7 +906,25 @@ const Home = () => {
                            </div>
                            
                             <div style={{ display: 'flex', alignItems: 'center', gap: '16px', flexWrap: 'wrap' }}>
-                               <div className="card-actions" style={{ position: 'relative', display: 'flex', gap: '8px', opacity: activeMenu === file._id ? 1 : 0, transition: 'opacity 0.2s' }}>
+                               <div className="card-actions" style={{ position: 'relative', display: 'flex', gap: '8px', opacity: selectedIds.length > 0 || activeMenu === file._id ? 1 : 0, transition: 'opacity 0.2s' }}>
+                                    <button 
+                                      onClick={(e) => toggleSelect(e, file._id)} 
+                                      style={{ 
+                                        background: selectedIds.includes(file._id) ? 'var(--accent-primary)' : 'rgba(255,255,255,0.05)', 
+                                        border: `1px solid ${selectedIds.includes(file._id) ? 'var(--accent-primary)' : 'var(--border-color)'}`, 
+                                        borderRadius: '6px', 
+                                        padding: '6px', 
+                                        color: '#fff', 
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                      }}
+                                      title="Select Item"
+                                    >
+                                      {selectedIds.includes(file._id) ? <Check size={14} /> : <div style={{ width: 14, height: 14 }} />}
+                                    </button>
                                    <button onClick={(e) => handleActionClick(e, file._id)} className="action-btn-small" style={{ background: 'rgba(255,255,255,0.05)', border: 'none', borderRadius: '6px', padding: '6px', color: 'var(--text-muted)', cursor: 'pointer' }} title="Actions"><MoreVertical size={16} /></button>
                                    
                                    {activeMenu === file._id && (
@@ -848,7 +949,7 @@ const Home = () => {
                 ) : (
                    <div className="file-grid-adaptive" style={{ display: 'grid', gridTemplateColumns: viewMode === 'large' ? 'repeat(auto-fill, minmax(320px, 1fr))' : viewMode === 'small' ? 'repeat(auto-fill, minmax(130px, 1fr))' : 'repeat(auto-fill, minmax(260px, 1fr))', gap: '24px' }}>
                       {sortedFiles.map(file => (
-                          <div key={file._id} onClick={() => handleFileClick(file)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: viewMode === 'small' ? '12px' : '20px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s', overflow: 'visible' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 1; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; if (activeMenu !== file._id) e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 0; }}>
+                          <div key={file._id} onClick={() => handleFileClick(file)} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: '16px', padding: viewMode === 'small' ? '12px' : '20px', cursor: 'pointer', position: 'relative', transition: 'all 0.2s', overflow: 'visible' }} onMouseOver={(e) => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.borderColor = 'var(--accent-primary)'; e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 1; }} onMouseOut={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.borderColor = 'var(--border-color)'; if (activeMenu !== file._id && selectedIds.length === 0) e.currentTarget.querySelector('.card-actions-overlay').style.opacity = 0; }}>
                               
                               {/* Card Content */}
                               <div style={{ width: viewMode === 'small' ? '36px' : '64px', height: viewMode === 'small' ? '36px' : '64px', borderRadius: '12px', background: file.isFolder ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '16px', color: file.isFolder ? '#f59e0b' : 'var(--accent-primary)' }}>
@@ -883,7 +984,25 @@ const Home = () => {
                               )}
                               
                                {/* Action Overlay */}
-                               <div className="card-actions-overlay" style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', opacity: activeMenu === file._id ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}>
+                               <div className="card-actions-overlay" style={{ position: 'absolute', top: '12px', right: '12px', display: 'flex', gap: '6px', opacity: selectedIds.length > 0 || activeMenu === file._id ? 1 : 0, transition: 'opacity 0.2s', zIndex: 10 }}>
+                                   <button 
+                                      onClick={(e) => toggleSelect(e, file._id)} 
+                                      style={{ 
+                                        background: selectedIds.includes(file._id) ? 'var(--accent-primary)' : 'rgba(15,23,42,0.9)', 
+                                        border: `1px solid ${selectedIds.includes(file._id) ? 'var(--accent-primary)' : 'var(--border-color)'}`, 
+                                        borderRadius: '8px', 
+                                        padding: '8px', 
+                                        color: '#fff', 
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        transition: 'all 0.2s'
+                                      }}
+                                      title="Select Item"
+                                    >
+                                      {selectedIds.includes(file._id) ? <Check size={14} /> : <div style={{ width: 14, height: 14 }} />}
+                                    </button>
                                   <button onClick={(e) => handleActionClick(e, file._id)} style={{ background: 'rgba(15,23,42,0.9)', border: '1px solid var(--border-color)', borderRadius: '8px', padding: '8px', color: 'var(--text-muted)', cursor: 'pointer' }} title="Actions"><MoreVertical size={14} /></button>
                                   
                                   {activeMenu === file._id && (
@@ -1212,6 +1331,60 @@ const Home = () => {
               </div>
 
               <button onClick={() => setInfoFile(null)} className="btn-primary" style={{ width: '100%', marginTop: '24px', padding: '12px', borderRadius: '12px' }}>Close Inspector</button>
+           </div>
+        </div>
+      )}
+
+      {selectedIds.length > 0 && (
+        <div 
+          className="glass-panel selection-toolbar-sticky" 
+          style={{ 
+            position: 'fixed', 
+            bottom: '30px', 
+            left: '50%', 
+            transform: 'translateX(-50%)', 
+            zIndex: 10001, 
+            padding: '16px 24px', 
+            borderRadius: '20px', 
+            display: 'flex', 
+            alignItems: 'center', 
+            gap: '24px', 
+            border: '1px solid var(--accent-primary)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.6)',
+            background: 'rgba(15, 23, 42, 0.95)',
+            backdropFilter: 'blur(20px)',
+            animation: 'fadeInUp 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}
+        >
+           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', borderRight: '1px solid var(--border-color)', paddingRight: '24px' }}>
+              <div style={{ background: 'var(--accent-primary)', width: '28px', height: '28px', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff' }}>
+                 <Check size={16} />
+              </div>
+              <span style={{ fontWeight: '700', fontSize: '1.1rem' }}>{selectedIds.length} <span style={{ fontWeight: '400', color: 'var(--text-muted)' }}>Identities Targeted</span></span>
+           </div>
+
+           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+              <button 
+                onClick={handleBulkDownload} 
+                className="btn-primary" 
+                style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', width: 'auto' }}
+              >
+                 <Download size={16} /> Download ZIP
+              </button>
+              <button 
+                onClick={handleBulkDelete} 
+                className="btn-primary" 
+                style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)', color: 'var(--danger)', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.9rem', width: 'auto' }}
+              >
+                 <Trash2 size={16} /> Delete Permanently
+              </button>
+              <button 
+                onClick={() => setSelectedIds([])} 
+                className="btn-primary" 
+                style={{ background: 'transparent', border: '1px solid var(--border-color)', color: 'var(--text-muted)', padding: '10px 20px', fontSize: '0.9rem', width: 'auto' }}
+              >
+                 Cancel
+              </button>
            </div>
         </div>
       )}

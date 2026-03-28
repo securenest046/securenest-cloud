@@ -431,3 +431,33 @@ body {
     border-bottom: none !important;
   }
 }
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translate(-50%, 20px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* Multi-Select UX Matrix 🛡️ */
+.file-card-group:hover .card-actions,
+.file-grid-adaptive > div:hover .card-actions-overlay {
+  opacity: 1 !important;
+}
+
+@media (max-width: 768px) {
+  .selection-toolbar-sticky {
+    bottom: 20px !important;
+    width: 90% !important;
+    flex-direction: column !important;
+    gap: 16px !important;
+    padding: 20px !important;
+  }
+  .selection-toolbar-sticky > div {
+    border-right: none !important;
+    padding-right: 0 !important;
+    width: 100% !important;
+    justify-content: center !important;
+  }
+  .selection-toolbar-sticky .btn-primary {
+    width: 100% !important;
+  }
+}
