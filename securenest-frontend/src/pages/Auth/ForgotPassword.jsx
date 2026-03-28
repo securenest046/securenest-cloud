@@ -4,13 +4,17 @@ import { useNavigate } from 'react-router-dom';
 const ForgotPassword = () => {
   const [userId, setUserId] = useState('');
   const [submitted, setSubmitted] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const navigate = useNavigate();
 
   const handleReset = (e) => {
     e.preventDefault();
+    setIsSending(true);
     // The backend will catch the user-id, generate a unique reset link, and send it.
-    setSubmitted(true);
-    setIsSending(false);
+    setTimeout(() => {
+        setSubmitted(true);
+        setIsSending(false);
+    }, 1500);
   };
 
   return (

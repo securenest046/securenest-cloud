@@ -12,19 +12,24 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const { login, loginWithGoogle } = useAuth();
   const { showAlert, showToast } = useDialog();
+  const [isSending, setIsSending] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    setIsSending(true);
     try {
       await login(email, password);
       navigate('/home');
     } catch (error) {
       showToast("error", "Failed to sign in. Please check your password.");
+    } finally {
+      setIsSending(false);
     }
   };
 
   const handleGoogleSignIn = async () => {
+    setIsSending(true);
     try {
       const userCredentials = await loginWithGoogle();
       if (!userCredentials || !userCredentials.user) throw new Error("Google access was not granted.");
@@ -43,6 +48,8 @@ const Login = () => {
       console.error(error);
       const isDomainError = error.message.includes('unauthorized-domain');
       showToast("error", isDomainError ? "Error: Domain not authorized!" : `Login failed: ${error.message}`);
+    } finally {
+      setIsSending(false);
     }
   };
 

@@ -77,7 +77,6 @@ const Home = () => {
     }
   };
 
-  /**
   const handleMoveIdentities = async (targetFolderId, targetFolderName = "Selected Item") => {
     const idsToMove = selectedIds.length > 0 ? selectedIds : (draggedId ? [draggedId] : []);
     if (idsToMove.length === 0) return;
