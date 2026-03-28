@@ -449,13 +449,13 @@ const Home = () => {
           <h1 style={{ fontSize: '1.6rem', fontWeight: '800', background: 'linear-gradient(135deg, #fff, var(--accent-primary))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', margin: 0 }}>SecureNest</h1>
         </div>
         <div style={{ position: 'relative' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', cursor: 'pointer', transition: 'background 0.2s', border: '1px solid var(--border-color)' }} onClick={() => setProfileOpen(!profileOpen)}>
-             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 16px', background: 'rgba(255,255,255,0.05)', borderRadius: '12px', cursor: 'pointer', transition: 'background 0.2s', border: '1px solid var(--border-color)', maxWidth: '240px' }} onClick={() => setProfileOpen(!profileOpen)}>
+             <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'var(--accent-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: '600', flexShrink: 0 }}>
                 {currentUser?.email ? currentUser.email[0].toUpperCase() : 'U'}
              </div>
-             <div style={{ display: 'flex', flexDirection: 'column' }}>
-                <span style={{ fontSize: '0.9rem', fontWeight: '600', whiteSpace: 'nowrap' }}>{currentUser?.displayName || 'Vault User'}</span>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{currentUser?.email}</span>
+             <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
+                <span className="user-identity-text" style={{ fontSize: '0.9rem', fontWeight: '600' }}>{currentUser?.displayName || 'Vault User'}</span>
+                <span className="user-identity-text" style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>{currentUser?.email}</span>
              </div>
           </div>
           {profileOpen && (

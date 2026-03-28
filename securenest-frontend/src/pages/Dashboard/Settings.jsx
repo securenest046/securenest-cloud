@@ -59,7 +59,7 @@ const Settings = () => {
                 }
             }
         } catch (error) {
-            console.error("Settings Sync Error", err);
+            console.error("Settings Sync Error", error);
             setVaultKey("Connection Error: Backend Unreachable");
         }
     };
@@ -134,7 +134,7 @@ const Settings = () => {
             emailVerified: emailVerification.state === 'verified'
         });
 
-        showAlert("Sync Success", "Dashboard settings synchronized successfully!");
+        showAlert("Sync Success", "Dashboard settings synchronized successfully!", () => navigate('/home'));
         
         setIsChangingPassword(false);
         setFormData(prev => ({
@@ -143,11 +143,9 @@ const Settings = () => {
             newPassword: '',
             confirmNewPassword: ''
         }));
-        
-        navigate('/home');
     } catch (error) {
-        console.error("Settings Update Failed:", err);
-        const detail = err.response?.data?.detail || err.message;
+        console.error("Settings Update Failed:", error);
+        const detail = error.response?.data?.detail || error.message;
         showAlert("Sync Error", `Failed to update vault settings: ${detail}\n\nHINT: Re-authentication may have failed if your current password was incorrect.`);
     } finally {
         setIsSaving(false);

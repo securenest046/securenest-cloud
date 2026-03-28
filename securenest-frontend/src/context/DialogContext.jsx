@@ -19,8 +19,8 @@ export const DialogProvider = ({ children }) => {
     isDanger: false
   });
 
-  const showAlert = (title, message) => {
-    setDialog({ show: true, type: 'alert', title, message, confirmText: 'Understood' });
+  const showAlert = (title, message, onConfirm = null) => {
+    setDialog({ show: true, type: 'alert', title, message, onConfirm, confirmText: 'Understood' });
   };
 
   const showConfirm = (title, message, onConfirm, isDanger = false) => {
