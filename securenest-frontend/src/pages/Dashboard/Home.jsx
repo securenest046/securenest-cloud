@@ -270,7 +270,7 @@ const Home = () => {
     if (selectedIds.length === 0) return;
     
     setPageLoading(true);
-    setLoaderMessage(`Preparing Hierarchical Vault Export...`);
+    setLoaderMessage(`Engaging Cryptographic Archive Engine...`);
     
     try {
       const zipJS = await import("@zip.js/zip.js");
@@ -278,16 +278,28 @@ const Home = () => {
       const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
       
       const zipFileWriter = new zipJS.BlobWriter("application/zip");
-      const zipWriter = new zipJS.ZipWriter(zipFileWriter, { password: vaultKey });
+      const zipWriter = new zipJS.ZipWriter(zipFileWriter);
       
       let allFilesToDownload = [];
 
       for (const id of selectedIds) {
-        const item = userFiles.find(f => f._id === id);
+        let item = userFiles.find(f => f._id === id);
+        
+        // Identity Resolution: Fetch from registry if out of current scope
+        if (!item) {
+          setLoaderMessage(`Resolving Remote Identity...`);
+          try {
+            const metaRes = await axios.get(`${bUrl}/api/storage/metadata/${id}`);
+            if (metaRes.data.success) item = metaRes.data.file;
+          } catch (resError) {
+            console.error("Identity resolution failed for:", id, resError);
+          }
+        }
+
         if (!item) continue;
 
         if (item.isFolder) {
-          setLoaderMessage(`Discovery Pass: ${item.originalName}...`);
+          setLoaderMessage(`Deep-Scanning Directory: ${item.originalName}...`);
           try {
             const response = await axios.get(`${bUrl}/api/storage/files/${currentUser.uid}/recursive/${item._id}`);
             if (response.data.success) {
@@ -308,13 +320,16 @@ const Home = () => {
 
       for (const file of allFilesToDownload) {
         setLoaderMessage(`Decrypting: ${file.zipPath}...`);
-        // Use axios with arraybuffer for consistent handling
         const response = await axios.get(`${bUrl}/api/storage/proxy/${file._id}`, { responseType: 'arraybuffer' });
         const rawBuffer = response.data;
         const ivToUse = typeof file.iv === 'string' ? JSON.parse(file.iv) : file.iv;
         const decryptedBlob = await decryptFileForDownload(rawBuffer, vaultKey, ivToUse, file.mimeType);
         
-        await zipWriter.add(file.zipPath, new zipJS.Uint8ArrayReader(new Uint8Array(await decryptedBlob.arrayBuffer())));
+        // AES-256 Encryption Hardening 🛡️
+        await zipWriter.add(file.zipPath, new zipJS.Uint8ArrayReader(new Uint8Array(await decryptedBlob.arrayBuffer())), {
+          password: vaultKey,
+          encryptionMethod: "aes"
+        });
       }
       
       await zipWriter.close();

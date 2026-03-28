@@ -244,4 +244,16 @@ router.get('/files/:userId/recursive/:folderId', async (req, res) => {
     }
 });
 
+// Fetch single identity metadata
+router.get('/metadata/:fileId', async (req, res) => {
+    try {
+        const file = await FileMeta.findById(req.params.fileId);
+        if (!file) return res.status(404).json({ success: false, message: 'Identity pointer not found.' });
+        res.status(200).json({ success: true, file });
+    } catch (error) {
+        console.error("Metadata Retrieval Error:", error);
+        res.status(500).json({ success: false, error: 'Metadata retrieval failed.' });
+    }
+});
+
 module.exports = router;
