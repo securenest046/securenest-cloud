@@ -9,7 +9,7 @@ import { useDialog } from '../../context/DialogContext';
 
 const Settings = () => {
   const { currentUser, updateUserPassword, updateUserProfile, reauthenticate } = useAuth();
-  const { showAlert } = useDialog();
+  const { showAlert, showToast } = useDialog();
   const navigate = useNavigate();
   
   const [vaultKey, setVaultKey] = useState("Fetching unique vault hardware key...");
@@ -94,9 +94,9 @@ const Settings = () => {
           const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
           await axios.post(`${bUrl}/api/auth/verify-email-request`, { email: currentUser.email });
           setEmailVerification({...emailVerification, state: 'pending', loading: false});
-          showAlert("Security Synchronization", "Verification OTP sent to your email. Check your primary inbox.");
+          showToast("success", "Verification OTP sent to your email. Check your primary inbox.");
       } catch (error) {
-          showAlert("Sync Failure", "Failed to initiate verification transmission. Please try again.");
+          showToast("error", "Failed to initiate verification transmission. Please try again.");
           setEmailVerification({...emailVerification, loading: false});
       }
   };
@@ -110,9 +110,9 @@ const Settings = () => {
               otp: emailVerification.otp
           });
           setEmailVerification({...emailVerification, state: 'verified', loading: false});
-          showAlert("Security Identity Confirmed", "Email address verified successfully across all secure nodes.");
+          showToast("success", "Email address verified successfully across all secure nodes.");
       } catch (error) {
-          showAlert("Verification Conflict", "Invalid OTP security code. Please check your credentials and try again.");
+          showToast("error", "Invalid OTP security code. Please check your credentials.");
           setEmailVerification({...emailVerification, loading: false});
       }
   };
@@ -141,7 +141,8 @@ const Settings = () => {
             emailVerified: emailVerification.state === 'verified'
         });
 
-        showAlert("Sync Success", "Dashboard settings synchronized successfully!", () => navigate('/home'));
+        showToast("success", "Dashboard settings synchronized successfully!");
+        setTimeout(() => navigate('/home'), 1500);
         
         setIsChangingPassword(false);
         setFormData(prev => ({
@@ -153,7 +154,7 @@ const Settings = () => {
     } catch (error) {
         console.error("Settings Update Failed:", error);
         const detail = error.response?.data?.detail || error.message;
-        showAlert("Sync Error", `Failed to update vault settings: ${detail}\n\nHINT: Re-authentication may have failed if your current password was incorrect.`);
+        showToast("error", `Failed to update vault settings: ${detail}`);
     } finally {
         setIsSaving(false);
     }

@@ -11,7 +11,7 @@ const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { login, loginWithGoogle } = useAuth();
-  const { showAlert } = useDialog();
+  const { showAlert, showToast } = useDialog();
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
@@ -20,7 +20,7 @@ const Login = () => {
       await login(email, password);
       navigate('/home');
     } catch (error) {
-      showAlert("Authentication Error", "Failed to sign in. Please verify your master credentials.");
+      showToast("error", "Failed to sign in. Please verify your master credentials.");
     }
   };
 
@@ -42,12 +42,7 @@ const Login = () => {
     } catch (error) {
       console.error(error);
       const isDomainError = error.message.includes('unauthorized-domain');
-      showAlert(
-        isDomainError ? "Security Restriction" : "Gateway Error",
-        isDomainError 
-          ? "CRITICAL: Current Domain not authorized in Firebase! Please add your Vercel URL to the Firebase Console Authorized Domains list."
-          : `Access Failed: ${error.message}`
-      );
+      showToast("error", isDomainError ? "CRITICAL: Domain not authorized in Firebase!" : `Access Failed: ${error.message}`);
     }
   };
 

@@ -39,16 +39,6 @@ const Home = () => {
   const [isAuthVerifying, setIsAuthVerifying] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  // Professional Telemetry Notification Matrix 🛡️
-  const [notifications, setNotifications] = useState([]);
-  const addNotification = (type, message) => {
-    const id = Date.now();
-    setNotifications(prev => [...prev, { id, type, message }]);
-    setTimeout(() => {
-        setNotifications(prev => prev.filter(n => n.id !== id));
-    }, 6000);
-  };
-
   const [recentAccounts, setRecentAccounts] = useState(() => {
     const saved = localStorage.getItem('recentAccounts');
     return saved ? JSON.parse(saved) : [];
@@ -94,7 +84,7 @@ const Home = () => {
     
     // Prevent moving a folder into itself
     if (selectedIds.includes(targetFolderId)) {
-        showAlert("Relocation Failure", "Self-nesting is mathematically impossible within the vault.");
+        showToast("error", "Self-nesting is mathematically impossible.");
         return;
     }
 
@@ -111,12 +101,12 @@ const Home = () => {
         if (data.success) {
             // Remove moved items from current view
             setUserFiles(prev => prev.filter(f => !selectedIds.includes(f._id)));
-            addNotification("success", `Successfully relocated ${selectedIds.length} identities.`);
+            showToast("success", `Successfully relocated ${selectedIds.length} identities.`);
             setSelectedIds([]);
         }
     } catch (err) {
         console.error("Relocation Error:", err);
-        addNotification("error", "Failed to resolve the relocation request.");
+        showToast("error", "Failed to resolve the relocation request.");
     } finally {
         setIsUploading(false);
         setLoaderMessage("Accessing Secure Vault...");
@@ -148,7 +138,7 @@ const Home = () => {
           }
       } catch (err) {
           console.error("New Folder Move Error:", err);
-          addNotification("error", "Failed to initialize the destination registry.");
+          showToast("error", "Failed to initialize the destination registry.");
       } finally {
           setIsUploading(false);
           setLoaderMessage("Accessing Secure Vault...");
@@ -319,9 +309,10 @@ const Home = () => {
       if (data.success) {
         setUserFiles(prev => prev.map(f => f._id === fileId ? { ...f, originalName: renameValue } : f));
         setRenamingId(null);
+        showToast("success", "Identity renamed successfully.");
       }
     } catch (err) {
-      showAlert("Vault Error", "Security Rename failed.");
+      showToast("error", "Security Rename failed.");
     }
   };
 
@@ -344,9 +335,10 @@ const Home = () => {
           if (data.success) {
             setUserFiles(prev => [data.folder, ...prev]);
             closeDialog();
+            showToast("success", "Secure directory initialized successfully.");
           }
         } catch (error) {
-          showAlert("Vault Error", "Failed to initialize directory container.");
+          showToast("error", "Failed to initialize directory container.");
         }
     });
   };
@@ -396,10 +388,10 @@ const Home = () => {
           }
           setUserFiles(prev => prev.filter(f => !selectedIds.includes(f._id)));
           setSelectedIds([]);
-          showAlert("Vault Purged", "The selected identities have been successfully decommissioned.");
+          showToast("success", "The selected identities have been decommissioned.");
         } catch (error) {
           console.error("Bulk Delete Failure", error);
-          showAlert("Registry Error", "One or more identities failed to decommission properly.");
+          showToast("error", "One or more identities failed to decommission.");
         } finally {
           setPageLoading(false);
           setLoaderMessage("Accessing Secure Vault...");
@@ -485,11 +477,11 @@ const Home = () => {
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
       
-      showAlert("Transmission Finalized", `Hierarchical archive constructed for ${allFilesToDownload.length} identities.`);
+      showToast("success", `Hierarchical archive constructed for ${allFilesToDownload.length} identities.`);
       setSelectedIds([]);
     } catch (error) {
       console.error("Bulk Download Failure", error);
-      showAlert("Transmission Error", "Failed to compile cryptographic archive.");
+      showToast("error", "Failed to compile cryptographic archive.");
     } finally {
       setPageLoading(false);
       setLoaderMessage("Accessing Secure Vault...");
@@ -517,7 +509,7 @@ const Home = () => {
     if (files.length === 0) return;
 
     if (!vaultKey || vaultKey === 'Loading...') {
-      showAlert("Security Constraint", "Cryptographic Vault Key is not ready.");
+      showToast("error", "Cryptographic Vault Key is not ready.");
       return;
     }
 
@@ -569,7 +561,7 @@ const Home = () => {
       setIsUploadMinimized(false);
     } catch (err) {
       console.error("Hierarchy Ingestion Error", err);
-      showAlert("Branch Failure", "Failed to reconstruct the local directory tree within the vault.");
+      showToast("error", "Failed to reconstruct the local directory tree.");
     } finally {
       setIsUploading(false);
       setLoaderMessage("Accessing Secure Vault...");
@@ -610,7 +602,7 @@ const Home = () => {
 
   const processDroppedEntries = async (entries) => {
     if (!vaultKey || vaultKey === 'Loading...') {
-      showAlert("Security Constraint", "Cryptographic Vault Key is not ready.");
+      showToast("error", "Cryptographic Vault Key is not ready.");
       return;
     }
 
@@ -678,9 +670,9 @@ const Home = () => {
       }
       setUploadQueue(prev => [...prev, ...newQueueItems]);
       setIsUploadMinimized(false);
-      addNotification("success", `Ingesting ${newQueueItems.length} new identities into the vault...`);
+      showToast("success", `Ingesting ${newQueueItems.length} new identities into the vault...`);
     } catch (err) {
-      addNotification("error", "Failed to resolve dropped directory structure.");
+      showToast("error", "Failed to resolve dropped directory structure.");
     } finally {
       setIsUploading(false);
       setLoaderMessage("Accessing Secure Vault...");
@@ -773,7 +765,7 @@ const Home = () => {
         setViewingFile({ meta: file, url });
     } catch (error) {
         console.error("Retrieval Error", error);
-        showAlert("Decryption Failure", "Failed to restore secure binary from vault.");
+        showToast("error", "Decryption Failure: Failed to restore secure binary.");
     } finally {
         setPageLoading(false);
         setLoaderMessage("Accessing Secure Vault...");
@@ -823,9 +815,10 @@ const Home = () => {
                 if (fileToRemove) setTotalStorageUsed(prev => prev - fileToRemove.fileSize);
                 if (blobCache[fileId]) URL.revokeObjectURL(blobCache[fileId]);
                 closeDialog();
+                showToast("success", "Identity decommissioned successfully.");
               }
             } catch (error) {
-              showAlert("Vault Error", "Security Decommissioning failed.");
+              showToast("error", "Security Decommissioning failed.");
             }
         },
         true
@@ -1455,7 +1448,7 @@ const Home = () => {
                 <p style={{ color: 'var(--text-muted)', marginBottom: '32px' }}>Choose your preferred authentication protocol to initiate a secure parallel session.</p>
                 
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                   <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }} onClick={() => { setIsAccountLoading(true); loginWithGoogle().then(() => setShowAccountModal(false)).catch(e => showAlert("Identity Error", e.message)).finally(() => setIsAccountLoading(false)); }}>
+                   <button className="btn-primary" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }} onClick={() => { setIsAccountLoading(true); loginWithGoogle().then(() => setShowAccountModal(false)).catch(e => showToast("error", e.message)).finally(() => setIsAccountLoading(false)); }}>
                       <Globe size={18} /> Sign in with Google
                    </button>
                    <button className="btn-primary" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid var(--border-color)', color: '#fff' }} onClick={() => setAccountModalView('login')}>
@@ -1485,7 +1478,7 @@ const Home = () => {
                        }
                        setIsSwitching(false);
                        setShowAccountModal(false);
-                   } catch (err) { showAlert("Identity Error", err.message); } finally { setIsAccountLoading(false); }
+                   } catch (err) { showToast("error", err.message); } finally { setIsAccountLoading(false); }
                 }}>
                    <div className="input-group">
                       <label>Email Address</label>
@@ -1916,15 +1909,6 @@ const Home = () => {
           </div>
         </div>
       )}
-      {/* Professional Telemetry Notification Overlay 🛡️ */}
-      <div style={{ position: 'fixed', top: '24px', left: '50%', transform: 'translateX(-50%)', zIndex: 100000, display: 'flex', flexDirection: 'column', gap: '10px', alignItems: 'center', pointerEvents: 'none' }}>
-        {notifications.map(n => (
-          <div key={n.id} className="glass-panel" style={{ padding: '12px 24px', borderRadius: '16px', border: `1px solid ${n.type === 'error' ? 'rgba(239, 68, 68, 0.4)' : 'rgba(59, 130, 246, 0.4)'}`, background: 'rgba(15, 23, 42, 0.95)', color: '#fff', boxShadow: '0 20px 40px rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', gap: '12px', animation: 'slideInDown 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)', pointerEvents: 'auto' }}>
-             {n.type === 'error' ? <ShieldAlert size={18} color="#ef4444" /> : <CheckCircle size={18} color="#3b82f6" />}
-             <span style={{ fontSize: '0.9rem', fontWeight: '700', letterSpacing: '0.3px' }}>{n.message}</span>
-          </div>
-        ))}
-      </div>
     </div>
   );
 };

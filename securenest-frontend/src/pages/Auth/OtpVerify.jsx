@@ -12,7 +12,7 @@ const OtpVerify = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signup } = useAuth();
-  const { showAlert } = useDialog();
+  const { showAlert, showToast } = useDialog();
   
   const email = location.state?.email || '';
 
@@ -41,7 +41,7 @@ const OtpVerify = () => {
         }
     } catch (error) {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        showAlert("Verification Integrity Failure", `The security transmission was declined at ${backendUrl}: ${error.response?.data?.message || error.message}`);
+        showToast("error", `Identity Verification Failed: ${error.response?.data?.message || error.message}`);
     } finally {
         setIsVerifying(false);
     }
