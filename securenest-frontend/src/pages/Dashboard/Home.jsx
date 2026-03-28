@@ -459,7 +459,7 @@ const Home = () => {
              </div>
           </div>
           {profileOpen && (
-            <div className="glass-panel" style={{ position: 'absolute', top: '70px', right: '0', width: '320px', padding: '20px', zIndex: 300, animation: 'fadeIn 0.2s ease-out', background: 'rgba(15, 23, 42, 0.98)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.15)', boxShadow: '0 25px 50px rgba(0,0,0,0.8)' }}>
+            <div className="glass-panel" style={{ position: 'absolute', top: '70px', right: '0', width: '320px', maxWidth: 'calc(100vw - 40px)', padding: '20px', zIndex: 300, animation: 'fadeIn 0.2s ease-out', background: 'rgba(15, 23, 42, 0.98)', backdropFilter: 'blur(30px)', border: '1px solid rgba(255,255,255,0.15)', boxShadow: '0 25px 50px rgba(0,0,0,0.8)' }}>
               <div style={{ marginBottom: '20px', paddingBottom: '20px', borderBottom: '1px solid var(--border-color)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
                    <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', fontWeight: '500', margin: 0 }}><Key size={14} style={{ display: 'inline', verticalAlign: 'middle', marginRight: '4px' }}/> Vault Encryption Key</p>
@@ -467,19 +467,16 @@ const Home = () => {
                       {copied ? <><Check size={14}/> Copied</> : <><Copy size={14}/> Copy</>}
                    </button>
                 </div>
-                <div style={{ background: 'rgba(0,0,0,0.5)', padding: '12px 16px', borderRadius: '8px', border: '1px solid var(--border-color)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                <div style={{ fontFamily: 'monospace', color: 'var(--success)', fontSize: '0.85rem', wordBreak: 'break-all', letterSpacing: showVaultKey ? '1px' : '4px', textAlign: 'center', flex: 1 }}>
+                <div className="vault-key-display" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
+                <div style={{ fontFamily: 'monospace', color: 'var(--success)', fontSize: '0.85rem', wordBreak: 'break-all', letterSpacing: showVaultKey ? '1px' : '4px', textAlign: 'center', flex: 1, minWidth: 0 }}>
                   {showVaultKey ? vaultKey : '••••••••••••••••••••••••'}
                 </div>
-                <div style={{ display: 'flex', gap: '8px' }}>
+                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
                   <button 
                     onClick={() => setShowVaultKey(!showVaultKey)} 
                     style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
                   >
                     {showVaultKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                  <button onClick={handleCopy} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
-                    {copied ? <Check size={16} /> : <Copy size={16} />}
                   </button>
                 </div>
               </div>
