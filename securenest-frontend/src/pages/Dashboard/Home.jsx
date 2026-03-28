@@ -39,9 +39,6 @@ const Home = () => {
   const [isAuthVerifying, setIsAuthVerifying] = useState(false);
   const [authError, setAuthError] = useState("");
 
-  // Drag-and-Drop Matrix State 🛡️
-  const [isDragging, setIsDragging] = useState(false);
-
   const [recentAccounts, setRecentAccounts] = useState(() => {
     const saved = localStorage.getItem('recentAccounts');
     return saved ? JSON.parse(saved) : [];
@@ -117,35 +114,36 @@ const Home = () => {
   };
 
   const handleMoveToNewFolder = async () => {
-    const folderName = prompt("Enter new folder name for relocation:");
-    if (!folderName) return;
+    showPrompt("Initialize Destination", "Enter the naming protocol for relocation:", async (folderName) => {
+      if (!folderName) return;
 
-    setLoaderMessage("Constructing Destination Registry...");
-    setIsUploading(true);
-    try {
-        const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        
-        // 1. Create the new folder in the current directory
-        const { data } = await axios.post(`${bUrl}/api/storage/folder`, {
-            userId: currentUser.uid,
-            originalName: folderName,
-            parentId: currentFolder?._id || null
-        });
+      setLoaderMessage("Constructing Destination Registry...");
+      setIsUploading(true);
+      try {
+          const bUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+          
+          // 1. Create the new folder in the current directory
+          const { data } = await axios.post(`${bUrl}/api/storage/folder`, {
+              userId: currentUser.uid,
+              originalName: folderName,
+              parentId: currentFolder?._id || null
+          });
 
-        if (data.success) {
-            const newFolder = data.folder;
-            setUserFiles(prev => [newFolder, ...prev]);
-            
-            // 2. Relocate selected items into this new folder
-            await handleMoveIdentities(newFolder._id, folderName);
-        }
-    } catch (err) {
-        console.error("New Folder Move Error:", err);
-        showAlert("Relocation Failure", "Failed to initialize the destination registry.");
-    } finally {
-        setIsUploading(false);
-        setLoaderMessage("Accessing Secure Vault...");
-    }
+          if (data.success) {
+              const newFolder = data.folder;
+              setUserFiles(prev => [newFolder, ...prev]);
+              
+              // 2. Relocate selected items into this new folder
+              await handleMoveIdentities(newFolder._id, folderName);
+          }
+      } catch (err) {
+          console.error("New Folder Move Error:", err);
+          showAlert("Relocation Failure", "Failed to initialize the destination registry.");
+      } finally {
+          setIsUploading(false);
+          setLoaderMessage("Accessing Secure Vault...");
+      }
+    });
   };
 
   const handleItemDragStart = (e, item) => {
@@ -575,21 +573,16 @@ const Home = () => {
   const handleDragOver = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(true);
   };
 
   const handleDragLeave = (e) => {
     e.preventDefault();
     e.stopPropagation();
-    // Only set dragging to false if we leave the actual container
-    if (e.currentTarget.contains(e.relatedTarget)) return;
-    setIsDragging(false);
   };
 
   const handleDrop = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    setIsDragging(false);
 
     const items = e.dataTransfer.items;
     if (!items || items.length === 0) return;
@@ -921,16 +914,6 @@ const Home = () => {
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
-      {/* 🧬 Drag-and-Drop Ingestion Overlay 🛡️ */}
-      {isDragging && (
-        <div style={{ position: 'fixed', inset: '10px', background: 'rgba(59, 130, 246, 0.05)', backdropFilter: 'blur(10px)', border: '2px dashed var(--accent-primary)', borderRadius: '24px', zIndex: 20002, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: 'var(--accent-primary)', animation: 'scaleIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)', cursor: 'copy', pointerEvents: 'none' }}>
-           <div style={{ background: 'rgba(59,130,246,0.1)', width: '100px', height: '100px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '24px', boxShadow: '0 0 40px rgba(59,130,246,0.2)' }}>
-              <Upload size={48} />
-           </div>
-           <h2 style={{ fontSize: '2rem', fontWeight: '800', margin: '0 0 8px 0', textShadow: '0 0 20px rgba(59,130,246,0.5)' }}>Release Identities</h2>
-           <p style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.7)', fontWeight: '500' }}>Bit-Perfect Cryptographic Ingestion Ready</p>
-        </div>
-      )}
       
       {viewingFile && (
          <FileViewer 

@@ -56,7 +56,12 @@ export const DialogProvider = ({ children }) => {
                 placeholder="Enter value..."
                 value={dialog.inputValue}
                 onChange={(e) => setDialog({...dialog, inputValue: e.target.value})}
-                onKeyDown={(e) => e.key === 'Enter' && dialog.onConfirm(dialog.inputValue)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    dialog.onConfirm(dialog.inputValue);
+                    closeDialog();
+                  }
+                }}
               />
             )}
             
