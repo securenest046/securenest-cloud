@@ -1044,7 +1044,7 @@ const Home = () => {
           
           <div style={{ paddingBottom: '24px', borderBottom: '1px solid var(--border-color)', marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '20px' }}>
              <div>
-               <h2 style={{ fontSize: '2.5rem', marginBottom: '8px', fontWeight: '700' }}>Vault</h2>
+               <h2 style={{ fontSize: '2.5rem', marginBottom: '8px', fontWeight: '700' }}>Dashboard</h2>
                <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>Manage your files and encrypted data safely.</p>
              </div>
              

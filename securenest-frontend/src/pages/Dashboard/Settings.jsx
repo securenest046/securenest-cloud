@@ -199,7 +199,7 @@ const Settings = () => {
   return (
     <div style={{ minHeight: '100vh', padding: '40px', background: 'var(--bg-dark)' }}>
       <button onClick={() => navigate('/home')} style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', marginBottom: '32px', fontSize: '1.1rem', transition: 'color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.color = '#fff'} onMouseOut={(e) => e.currentTarget.style.color = 'var(--text-muted)'}>
-         <ArrowLeft size={20} /> Back to Vault
+         <ArrowLeft size={20} /> Back to Dashboard
       </button>
 
       <div className="glass-panel" style={{ maxWidth: '850px', margin: '0 auto', padding: '48px' }}>

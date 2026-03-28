@@ -25,15 +25,15 @@ const OtpVerify = () => {
         const { data } = await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/otp/verify-otp`, { email, otp: emailOtp });
         
         if (data.success) {
-            // 2. Create account
+            // 2. Native Auth User Registration Creation into GCP via React Context
             const userCredentials = await signup(email, location.state?.password);
             
-            // 3. Account sync
+            // 3. Vault Mongoose Synchronization (Establishing robust DB profile)
             await axios.post(`${import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000'}/api/auth/sync`, {
                 userId: userCredentials.user.uid,
                 email,
-                fullName: location.state?.fullName || 'User',
-                phone: 'Verified' 
+                fullName: location.state?.fullName || 'SecureVault User',
+                phone: 'Verified Inside Dashboard' // Placeholder to keep model happy if it expects phone
             });
             
             // 4. Secure Transfer
@@ -41,7 +41,7 @@ const OtpVerify = () => {
         }
     } catch (error) {
         const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
-        showToast("error", `Verification failed: ${error.response?.data?.message || error.message}`);
+        showToast("error", `Identity Verification Failed: ${error.response?.data?.message || error.message}`);
     } finally {
         setIsVerifying(false);
     }
