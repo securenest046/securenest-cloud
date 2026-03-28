@@ -289,15 +289,11 @@ const Settings = () => {
                   <span style={{ fontWeight: '600', fontSize: '1.1rem' }}>Master Encryption Key</span>
                </div>
                <p style={{ color: 'var(--text-muted)', fontSize: '0.95rem', marginBottom: '20px', lineHeight: '1.5' }}>This 40-character key is used to execute mathematical, military-grade client-side encryption on your payloads locally before they reach the backend. It auto-rotates every 30 days securely.</p>
-                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', position: 'relative' }}>
-                  <input 
-                    type={showVaultKey ? "text" : "password"} 
-                    className="input-field" 
-                    value={vaultKey} 
-                    readOnly 
-                    style={{ minWidth: 0, flex: '1 1 200px', width: '100%', fontFamily: 'monospace', color: 'var(--success)', letterSpacing: showVaultKey ? '1px' : '4px', background: 'rgba(0,0,0,0.5)', cursor: 'not-allowed', textAlign: 'center', paddingRight: '120px' }}
-                  />
-                  <div style={{ position: 'absolute', right: '70px', top: '50%', transform: 'translateY(-50%)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <div className="vault-key-row" style={{ height: '54px' }}>
+                  <div className="vault-key-display" style={{ letterSpacing: showVaultKey ? '1px' : '4px', textAlign: 'center' }}>
+                    {showVaultKey ? vaultKey : '••••••••••••••••••••••••'}
+                  </div>
+                  <div className="vault-key-action-group">
                     <button 
                       type="button" 
                       onClick={() => setShowVaultKey(!showVaultKey)}
@@ -305,10 +301,14 @@ const Settings = () => {
                     >
                       {showVaultKey ? <EyeOff size={20} /> : <Eye size={20} />}
                     </button>
+                    <button 
+                      type="button" 
+                      onClick={handleCopy} 
+                      style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      {copied ? <Check size={20} /> : <Copy size={20} />}
+                    </button>
                   </div>
-                  <button type="button" onClick={handleCopy} style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: '56px', background: 'var(--accent-primary)', border: 'none', borderRadius: '8px', color: '#fff', cursor: 'pointer', transition: 'background 0.2s', boxShadow: '0 4px 10px rgba(59, 130, 246, 0.4)', position: 'absolute', right: '0', top: '0', bottom: '0' }}>
-                     {copied ? <Check size={20} strokeWidth={3} color="#10b981" /> : <Copy size={20} />}
-                  </button>
                 </div>
             </div>
 

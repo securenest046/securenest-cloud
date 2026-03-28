@@ -467,19 +467,22 @@ const Home = () => {
                       {copied ? <><Check size={14}/> Copied</> : <><Copy size={14}/> Copy</>}
                    </button>
                 </div>
-                <div className="vault-key-display" style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '12px' }}>
-                <div style={{ fontFamily: 'monospace', color: 'var(--success)', fontSize: '0.85rem', wordBreak: 'break-all', letterSpacing: showVaultKey ? '1px' : '4px', textAlign: 'center', flex: 1, minWidth: 0 }}>
-                  {showVaultKey ? vaultKey : '••••••••••••••••••••••••'}
+                <div className="vault-key-row">
+                  <div className="vault-key-display">
+                    {showVaultKey ? vaultKey : '••••••••••••••••••••••••'}
+                  </div>
+                  <div className="vault-key-action-group">
+                    <button 
+                      onClick={() => setShowVaultKey(!showVaultKey)} 
+                      style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+                    >
+                      {showVaultKey ? <EyeOff size={16} /> : <Eye size={16} />}
+                    </button>
+                    <button onClick={handleCopy} style={{ background: 'transparent', border: 'none', color: 'var(--accent-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+                      {copied ? <Check size={16} /> : <Copy size={16} />}
+                    </button>
+                  </div>
                 </div>
-                <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
-                  <button 
-                    onClick={() => setShowVaultKey(!showVaultKey)} 
-                    style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center' }}
-                  >
-                    {showVaultKey ? <EyeOff size={16} /> : <Eye size={16} />}
-                  </button>
-                </div>
-              </div>
               </div>
               
               {/* Recent Accounts Memory Switcher */}
